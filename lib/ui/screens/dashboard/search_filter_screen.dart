@@ -7,7 +7,7 @@ import 'package:intl/intl.dart'; // Required for formatting the custom date
 import '../../../models/project.dart';
 import '../../../providers/project_provider.dart';
 import '../../../providers/theme_provider.dart';
-import 'widget/site_card.dart';
+import 'widgets/site_card.dart';
 
 class SearchFilterScreen extends ConsumerStatefulWidget {
   const SearchFilterScreen({super.key});

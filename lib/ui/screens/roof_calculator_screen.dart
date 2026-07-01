@@ -579,18 +579,19 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
                                 : null,
                           );
 
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Saved: Pattern ${_selectedTopologyIndex + 1} Selected!',
-                            ),
-                            backgroundColor: Colors.green,
-                            behavior: SnackBarBehavior.floating,
+                      if (!context.mounted) return;
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Saved: Pattern ${_selectedTopologyIndex + 1} Selected!',
                           ),
-                        );
-                        Navigator.pop(context);
-                      }
+                          backgroundColor: Colors.green,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+
+                      Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,

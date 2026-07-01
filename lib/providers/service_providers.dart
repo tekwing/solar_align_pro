@@ -66,11 +66,11 @@ class SolarCalculatorService {
     topologies.add({
       'name': 'Microinverter System',
       'desc': 'Individual panel optimization (Parallel AC Output)',
-      'parallelStrings': totalPanels,
+      'parallelStrings': totalPanels, // All panels run in parallel
       'panelsInSeries': 1,
       'unbalanced': 0,
-      'voc': panelVoc,
-      'imp': totalPanels * panelImp,
+      'voc': panelVoc, // Voltage does not stack
+      'imp': totalPanels * panelImp, // Current sums up on the trunk cable
     });
 
     return topologies;
@@ -85,10 +85,12 @@ final solarCalculatorProvider = Provider<SolarCalculatorService>((ref) {
 // PREMIUM PDF GENERATION SERVICE
 // -------------------------------------------------------------
 class PdfService {
-  Future<void> generateAndShareReport(Project project) async {
+  Future<bool> generateAndShareReport(
+    Project project, {
+    bool downloadOnly = false,
+  }) async {
     final pdf = pw.Document();
 
-    // 1. Load Site Photos from Device Storage into Memory
     final List<pw.MemoryImage> photos = [];
     if (project.photoPaths != null && project.photoPaths!.isNotEmpty) {
       for (final path in project.photoPaths!) {
@@ -100,7 +102,6 @@ class PdfService {
       }
     }
 
-    // 2. Build the PDF Document Pages
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.letter,
@@ -112,7 +113,6 @@ class PdfService {
             _buildClientInfo(project),
             pw.SizedBox(height: 24),
 
-            // Side-by-side Layout for Telemetry and Estimation
             pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
@@ -132,15 +132,27 @@ class PdfService {
       ),
     );
 
-    // 3. Trigger native iOS/Android share and print dialog
     final bytes = await pdf.save();
-    await Printing.sharePdf(
-      bytes: bytes,
-      filename: 'Solar_Survey_${project.customerName.replaceAll(' ', '_')}.pdf',
-    );
-  }
+    final filename =
+        'Solar_Survey_${project.customerName.replaceAll(' ', '_')}.pdf';
 
-  // --- PDF COMPONENT BUILDERS ---
+    if (downloadOnly) {
+      try {
+        // Attempt to save directly to the device's standard Downloads folder
+        final dir = Directory('/storage/emulated/0/Download');
+        if (await dir.exists()) {
+          final file = File('${dir.path}/$filename');
+          await file.writeAsBytes(bytes);
+          return true; // Success
+        }
+      } catch (e) {
+        // If storage access fails (iOS/restrictions), it safely falls through to the share sheet
+      }
+    }
+
+    await Printing.sharePdf(bytes: bytes, filename: filename);
+    return true;
+  }
 
   pw.Widget _buildPdfHeader() {
     return pw.Column(
@@ -164,7 +176,7 @@ class PdfService {
                 pw.SizedBox(height: 4),
                 pw.Text(
                   'PROFESSIONAL ENGINEERING REPORT',
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontSize: 10,
                     color: PdfColors.blueGrey600,
                     letterSpacing: 2.0,
@@ -333,6 +345,7 @@ class PdfService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
+          // Merged Title in PDF
           _buildSectionTitle(
             'System Estimation & Topology',
             PdfColors.green800,
@@ -361,11 +374,11 @@ class PdfService {
               isHighlight: true,
             ),
 
+            // Placed directly underneath estimation in PDF
             pw.SizedBox(height: 8),
             pw.Divider(color: PdfColors.green200),
             pw.SizedBox(height: 8),
 
-            // INJECTED TOPOLOGY DATA
             _buildDataRow(
               'Pattern Type',
               project.selectedTopologyName ?? 'Pending Selection',
@@ -419,7 +432,6 @@ class PdfService {
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // Structural Column
               pw.Expanded(
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -451,7 +463,6 @@ class PdfService {
                 ),
               ),
               pw.SizedBox(width: 16),
-              // Electrical Column
               pw.Expanded(
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -471,16 +482,8 @@ class PdfService {
                           ? '${project.mainPanelAmps} A'
                           : 'Pending',
                     ),
-                    // Ensuring values match what we displayed above
-                    _buildDataRow(
-                      'System Topology',
-                      project.selectedTopologyName ?? 'Pending Selection',
-                    ),
-                    _buildDataRow(
-                      'Inverter Type',
-                      'Standard / Micro (Check Pattern)',
-                    ),
-                    _buildDataRow('Wire Gauge', 'Awaiting Final Spec'),
+                    _buildDataRow('Inverter Type', 'Pending Update'),
+                    _buildDataRow('Wire Gauge', 'Pending Update'),
                   ],
                 ),
               ),
