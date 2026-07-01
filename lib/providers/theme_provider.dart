@@ -17,6 +17,11 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
     final isDark = box.get('isDarkMode', defaultValue: false);
     return isDark ? ThemeMode.dark : ThemeMode.light;
   }
+
+  // NEW: Public method to safely update the state from the UI
+  void setThemeMode(ThemeMode mode) {
+    state = mode;
+  }
 }
 
 final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(

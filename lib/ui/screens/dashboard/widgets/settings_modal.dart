@@ -31,7 +31,6 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill the text fields if a manual location is already set
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final currentLat = ref.read(manualLatProvider);
       final currentLon = ref.read(manualLonProvider);
@@ -61,9 +60,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
     final currency = ref.watch(currencyProvider);
 
     return Container(
-      height:
-          MediaQuery.of(context).size.height *
-          0.85, // Taller to fit location inputs
+      height: MediaQuery.of(context).size.height * 0.85,
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
@@ -105,9 +102,12 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                         icon: Icons.dark_mode_rounded,
                         value: isDarkMode,
                         onChanged: (val) {
-                          ref.read(themeModeProvider.notifier).state = val
-                              ? ThemeMode.dark
-                              : ThemeMode.light;
+                          // FIX: Uses public custom method now
+                          ref
+                              .read(themeModeProvider.notifier)
+                              .setThemeMode(
+                                val ? ThemeMode.dark : ThemeMode.light,
+                              );
                         },
                       ),
                       Divider(height: 1, indent: 60, color: theme.dividerColor),
@@ -120,9 +120,8 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                         icon: Icons.stay_current_portrait_rounded,
                         value: isScreenActive,
                         onChanged: (val) {
-                          ref.read(keepScreenActiveProvider.notifier).state =
-                              val;
-                          // Note: In a real app, tie this to the `wakelock_plus` package
+                          // FIX: Uses public set method now
+                          ref.read(keepScreenActiveProvider.notifier).set(val);
                         },
                       ),
                       Divider(height: 1, indent: 60, color: theme.dividerColor),
@@ -135,7 +134,8 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                         icon: Icons.volume_up_rounded,
                         value: isSoundEnabled,
                         onChanged: (val) {
-                          ref.read(soundEnabledProvider.notifier).state = val;
+                          // FIX: Uses public set method now
+                          ref.read(soundEnabledProvider.notifier).set(val);
                         },
                       ),
                       Divider(height: 1, indent: 60, color: theme.dividerColor),
@@ -148,8 +148,8 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                         icon: Icons.vibration_rounded,
                         value: isVibrationEnabled,
                         onChanged: (val) {
-                          ref.read(vibrationEnabledProvider.notifier).state =
-                              val;
+                          // FIX: Uses public set method now
+                          ref.read(vibrationEnabledProvider.notifier).set(val);
                         },
                       ),
                     ],
@@ -256,7 +256,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                                   if (value == null || value.isEmpty) {
                                     if (lonCtrl.text.isNotEmpty)
                                       return 'Required';
-                                    return null; // Both empty is okay (clears override)
+                                    return null;
                                   }
                                   final num = double.tryParse(value);
                                   if (num == null) return 'Invalid number';
@@ -277,7 +277,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                                   if (value == null || value.isEmpty) {
                                     if (latCtrl.text.isNotEmpty)
                                       return 'Required';
-                                    return null; // Both empty is okay (clears override)
+                                    return null;
                                   }
                                   final num = double.tryParse(value);
                                   if (num == null) return 'Invalid number';
@@ -343,8 +343,10 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     GestureDetector(
-                      onTap: () => ref.read(unitProvider.notifier).state =
-                          MeasurementUnit.metric,
+                      // FIX: Uses public set method now
+                      onTap: () => ref
+                          .read(unitProvider.notifier)
+                          .set(MeasurementUnit.metric),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -369,8 +371,10 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => ref.read(unitProvider.notifier).state =
-                          MeasurementUnit.imperial,
+                      // FIX: Uses public set method now
+                      onTap: () => ref
+                          .read(unitProvider.notifier)
+                          .set(MeasurementUnit.imperial),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -468,7 +472,8 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
             }).toList(),
             onChanged: (val) {
               if (val != null) {
-                ref.read(currencyProvider.notifier).state = val;
+                // FIX: Uses public set method now
+                ref.read(currencyProvider.notifier).set(val);
               }
             },
           ),
@@ -692,6 +697,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
             final lon = double.tryParse(lonCtrl.text);
 
             if (lat != null && lon != null) {
+              // StateProvider allows direct access to .state
               ref.read(manualLatProvider.notifier).state = lat;
               ref.read(manualLonProvider.notifier).state = lon;
 
@@ -704,7 +710,6 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
               );
               Navigator.pop(context);
             } else if (latCtrl.text.isEmpty && lonCtrl.text.isEmpty) {
-              // Clear the override if they wipe the fields
               ref.read(manualLatProvider.notifier).state = null;
               ref.read(manualLonProvider.notifier).state = null;
               Navigator.pop(context);

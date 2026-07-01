@@ -2,13 +2,14 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // For Haptic and Sound
+import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart'; // For Location Permissions and Data
-import 'package:google_fonts/google_fonts.dart'; // Premium Fonts
+import 'package:geolocator/geolocator.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 import '../../providers/project_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -34,6 +35,9 @@ class _ARAlignmentScreenState extends ConsumerState<ARAlignmentScreen> {
   late CameraController _cameraController;
   bool _isCameraInitialized = false;
 
+  // NEW: Dedicated Audio Player
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
   // Sensor Data
   double? _currentHeading;
   double _currentTilt = 0.0;
@@ -50,6 +54,9 @@ class _ARAlignmentScreenState extends ConsumerState<ARAlignmentScreen> {
     _initCamera();
     _initSensors();
     _initLocation();
+
+    // Preload the sound from the web so there is zero delay when the user aligns the target!
+    _audioPlayer.setSource(AssetSource('audio/ding.mp3'));
   }
 
   Future<void> _initCamera() async {
@@ -166,7 +173,7 @@ class _ARAlignmentScreenState extends ConsumerState<ARAlignmentScreen> {
     final isSoundEnabled = ref.read(soundEnabledProvider);
     final isVibrationEnabled = ref.read(vibrationEnabledProvider);
 
-    // Provide reliable physical/audio feedback
+    // Provide reliable physical feedback
     if (isVibrationEnabled) {
       // Heavy impact is universally respected by Android & iOS hardware
       HapticFeedback.heavyImpact();
@@ -174,9 +181,16 @@ class _ARAlignmentScreenState extends ConsumerState<ARAlignmentScreen> {
         HapticFeedback.heavyImpact(); // Double thump to confirm
       });
     }
+
+    // Provide GUARANTEED audio feedback bypassing OS touch settings
     if (isSoundEnabled) {
-      // Click is universally supported
-      SystemSound.play(SystemSoundType.click);
+      try {
+        await _audioPlayer.stop(); // Stop in case it was already playing
+        await _audioPlayer.play(AssetSource('audio/ding.mp3'));
+      } catch (e) {
+        // Fallback to native click if network fails
+        SystemSound.play(SystemSoundType.click);
+      }
     }
 
     // Auto-Save silently in the background
@@ -202,6 +216,7 @@ class _ARAlignmentScreenState extends ConsumerState<ARAlignmentScreen> {
   void dispose() {
     _compassSubscription?.cancel();
     _accelSubscription?.cancel();
+    _audioPlayer.dispose(); // Cleanup audio engine
     if (_isCameraInitialized) {
       _cameraController.dispose();
     }

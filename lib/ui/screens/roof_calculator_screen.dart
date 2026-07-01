@@ -152,10 +152,10 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
 
     double currentVal = double.tryParse(_areaController.text) ?? 0.0;
 
-    // Update global provider
-    ref.read(unitProvider.notifier).state = toSqMeters
-        ? MeasurementUnit.metric
-        : MeasurementUnit.imperial;
+    // FIX: Use the new public set method
+    ref
+        .read(unitProvider.notifier)
+        .set(toSqMeters ? MeasurementUnit.metric : MeasurementUnit.imperial);
 
     setState(() {
       if (currentVal > 0) {
@@ -579,6 +579,7 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
                                 : null,
                           );
 
+                      // FIX: Ensure the context is still mounted before using it across async gaps
                       if (!context.mounted) return;
 
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -590,7 +591,6 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
                           behavior: SnackBarBehavior.floating,
                         ),
                       );
-
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
