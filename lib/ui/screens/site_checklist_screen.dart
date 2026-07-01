@@ -369,16 +369,15 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
                             int.tryParse(_breakerSizeController.text) ?? 200,
                           );
 
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Engineering Checklist Saved!'),
-                            backgroundColor: Colors.green,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                        Navigator.pop(context);
-                      }
+                      if (!context.mounted) return;
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Engineering Checklist Saved!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      Navigator.pop(context);
                     }
                   },
                   style: ElevatedButton.styleFrom(

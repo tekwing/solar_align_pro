@@ -123,7 +123,9 @@ class SiteCard extends ConsumerWidget {
 
             try {
               Position position = await Geolocator.getCurrentPosition(
-                desiredAccuracy: LocationAccuracy.high,
+                locationSettings: const LocationSettings(
+                  accuracy: LocationAccuracy.high,
+                ),
               );
 
               if (context.mounted) {
@@ -136,6 +138,8 @@ class SiteCard extends ConsumerWidget {
                       position.longitude,
                       project.suggestedTilt ?? 30.0,
                     );
+
+                if (!context.mounted) return;
 
                 // Now allow entry into the workspace
                 Navigator.push(

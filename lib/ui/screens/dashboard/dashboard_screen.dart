@@ -56,10 +56,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy:
-            LocationAccuracy.low, // Low accuracy is fine for astronomical math
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low, // same idea as before
+        ),
       );
-
       _calculateSunTimes(position.latitude, position.longitude);
     } catch (e) {
       _calculateSunTimes(34.0522, -118.2437); // Fallback
@@ -165,7 +165,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           boxShadow: [
             BoxShadow(
               color: (isDark ? Colors.black : const Color(0xFF1E3A8A))
-                  .withOpacity(0.3),
+                  .withValues(alpha: 0.3),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -217,20 +217,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.1),
-                  Colors.white.withOpacity(0.02),
+                  Colors.white.withValues(alpha: 0.1),
+                  Colors.white.withValues(alpha: 0.02),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFF59E0B).withOpacity(0.2),
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -259,7 +259,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               Text(
                 'PROFESSIONAL EDITION',
                 style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 9,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.5,
@@ -278,9 +278,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white.withOpacity(0.15)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.15),
+                  ),
                 ),
                 child: IconButton(
                   icon: const Icon(
@@ -308,7 +310,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           boxShadow: [
             BoxShadow(
               color: (isDark ? Colors.black : const Color(0xFF1E3A8A))
-                  .withOpacity(0.3),
+                  .withValues(alpha: 0.3),
               blurRadius: 24,
               offset: const Offset(0, 12),
             ),
@@ -330,7 +332,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       colors: [
                         const Color(
                           0xFF38BDF8,
-                        ).withOpacity(isDark ? 0.08 : 0.15),
+                        ).withValues(alpha: isDark ? 0.08 : 0.15),
                         Colors.transparent,
                       ],
                     ),
@@ -348,9 +350,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.white.withOpacity(0.0),
-                          Colors.white.withOpacity(isDark ? 0.02 : 0.06),
-                          Colors.white.withOpacity(0.0),
+                          Colors.white.withValues(alpha: 0.0),
+                          Colors.white.withValues(alpha: isDark ? 0.02 : 0.06),
+                          Colors.white.withValues(alpha: 0.0),
                         ],
                       ),
                     ),
@@ -395,9 +397,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white.withOpacity(0.25)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
               ),
               child: Text(
                 DateFormat('EEE, MMM d').format(DateTime.now()).toUpperCase(),
@@ -413,7 +415,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Text(
               '•  $greeting',
               style: GoogleFonts.plusJakartaSans(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -442,10 +444,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
+            color: Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               width: 1.2,
             ),
           ),
@@ -493,9 +495,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.white.withOpacity(0.0),
-            Colors.white.withOpacity(0.25),
-            Colors.white.withOpacity(0.0),
+            Colors.white.withValues(alpha: 0.0),
+            Colors.white.withValues(alpha: 0.25),
+            Colors.white.withValues(alpha: 0.0),
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -512,12 +514,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color.withOpacity(0.9), size: 16),
+              Icon(icon, color: color.withValues(alpha: 0.9), size: 16),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white.withOpacity(0.6),
+                  color: Colors.white.withValues(alpha: 0.6),
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -590,13 +592,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isDark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.black.withOpacity(0.04),
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.04),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: accentColor.withOpacity(isDark ? 0.05 : 0.08),
+              color: accentColor.withValues(alpha: isDark ? 0.05 : 0.08),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -611,7 +613,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Text(
                   title.toUpperCase(),
                   style: GoogleFonts.plusJakartaSans(
-                    color: theme.iconTheme.color?.withOpacity(0.7),
+                    color: theme.iconTheme.color?.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w800,
                     fontSize: 11,
                     letterSpacing: 1.5,
@@ -625,7 +627,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: accentColor.withOpacity(0.6),
+                        color: accentColor.withValues(alpha: 0.6),
                         blurRadius: 8,
                         spreadRadius: 2,
                       ),
@@ -659,8 +661,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               child: LinearProgressIndicator(
                 value: prog,
                 minHeight: 6,
-                backgroundColor: theme.dividerColor.withOpacity(
-                  isDark ? 0.1 : 0.5,
+                backgroundColor: theme.dividerColor.withValues(
+                  alpha: isDark ? 0.1 : 0.5,
                 ),
                 valueColor: AlwaysStoppedAnimation<Color>(accentColor),
               ),
@@ -714,7 +716,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(

@@ -17,7 +17,7 @@ Future<void> main() async {
     cameras = await cam.availableCameras();
   } catch (e) {
     cameras = [];
-    print("Camera initialization failed: $e");
+    //print("Camera initialization failed: $e");
   }
 
   // Initialize Local Database

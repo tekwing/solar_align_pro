@@ -32,8 +32,7 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
 
   // AR Sensor State
   double _heading = 0.0; // Compass Azimuth (0 to 360)
-  double _pitch =
-      0.0; // Elevation Tilt (Negative = Ground, 0 = Horizon, 90 = Sky)
+  double _pitch = 0.0; // Elevation Tilt (0 = Horizon, 90 = Sky)
 
   StreamSubscription<CompassEvent>? _compassSubscription;
   StreamSubscription<AccelerometerEvent>? _accelSubscription;
@@ -42,9 +41,11 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
   void initState() {
     super.initState();
 
-    // ENFORCE STRICT PORTRAIT MODE
-    // Ensures hardware gyroscopes and camera matrices align perfectly
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    // Force Landscape Left for wider AR view
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
 
     _initCamera();
     _initSensors();
@@ -61,7 +62,10 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
           enableAudio: false,
         );
         await _controller!.initialize();
-        await _controller!.lockCaptureOrientation(DeviceOrientation.portraitUp);
+        // Lock camera sensor to landscape so the video feed doesn't warp
+        await _controller!.lockCaptureOrientation(
+          DeviceOrientation.landscapeLeft,
+        );
         if (mounted) setState(() {});
       }
     } catch (e) {
@@ -70,27 +74,26 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
   }
 
   void _initSensors() {
-    // 1. Compass Heading (Azimuth)
+    // Track device compass heading (Azimuth)
     _compassSubscription = FlutterCompass.events?.listen((CompassEvent event) {
       if (!mounted) return;
       setState(() {
-        // flutter_compass natively provides the true/magnetic heading.
-        _heading = event.heading ?? _heading;
+        // flutter_compass natively adjusts for screen orientation on most devices.
+        // We use the raw heading directly.
+        _heading = event.heading ?? 0.0;
       });
     });
 
-    // 2. True Gravity Pitch (Tilt)
+    // Track device tilt (Pitch) to anchor the horizon
     _accelSubscription = accelerometerEventStream().listen((
       AccelerometerEvent event,
     ) {
       if (!mounted) return;
       setState(() {
-        // ROCK SOLID GRAVITY MATH:
-        // Instead of atan2 which wraps around and glitches, we isolate the Z-axis gravity force.
-        // When pointing to the sky (screen down), Z = -9.81.
-        // This calculates a flawless -90 to +90 degree pitch.
-        double zNormalized = (event.z / 9.81).clamp(-1.0, 1.0);
-        _pitch = -math.asin(zNormalized) * 180 / math.pi;
+        // In Landscape mode, gravity pulls on the X axis when held upright.
+        // When tilted up to the sky, gravity shifts to the Z axis.
+        // x.abs() ensures it works perfectly whether held in LandscapeLeft or LandscapeRight!
+        _pitch = (math.atan2(event.z, event.x.abs()) * 180 / math.pi);
       });
     });
   }
@@ -102,6 +105,7 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
     final manualLat = ref.read(manualLatProvider);
     final manualLon = ref.read(manualLonProvider);
 
+    // 1. Check for manual override first
     if (manualLat != null && manualLon != null) {
       await ref
           .read(projectListProvider.notifier)
@@ -114,8 +118,10 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
       return;
     }
 
+    // 2. If we already have GPS, skip
     if (project.latitude != null && project.longitude != null) return;
 
+    // 3. Hardware GPS Fallback
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
@@ -125,15 +131,11 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
       if (permission == LocationPermission.denied) return;
     }
 
-    if (permission == LocationPermission.deniedForever) return;
-
     try {
-      const LocationSettings locationSettings = LocationSettings(
-        accuracy: LocationAccuracy.high,
-      );
-
       Position position = await Geolocator.getCurrentPosition(
-        locationSettings: locationSettings,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       if (mounted) {
         await ref
@@ -156,11 +158,11 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
       case SunSeason.today:
         return now;
       case SunSeason.summer:
-        return DateTime(now.year, 6, 21); // Summer Solstice
+        return DateTime(now.year, 6, 21); // Summer Solstice (Highest Arc)
       case SunSeason.equinox:
         return DateTime(now.year, 3, 20); // Spring Equinox
       case SunSeason.winter:
-        return DateTime(now.year, 12, 21); // Winter Solstice
+        return DateTime(now.year, 12, 21); // Winter Solstice (Lowest Arc)
     }
   }
 
@@ -170,7 +172,9 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
     _accelSubscription?.cancel();
     _controller?.dispose();
 
+    // Critically important: Revert the app back to portrait when leaving!
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
     super.dispose();
   }
 
@@ -179,6 +183,7 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
     final theme = Theme.of(context);
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
 
+    // In landscape, we use left/right padding to avoid notches, and bottom for gestures
     final safePadding = MediaQuery.of(context).padding;
 
     final project = ref
@@ -198,16 +203,16 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
         children: [
           // 1. Camera Feed
           if (_controller?.value.isInitialized ?? false)
-            SizedBox.expand(child: CameraPreview(_controller!))
+            CameraPreview(_controller!)
           else
             const Center(child: CircularProgressIndicator(color: Colors.amber)),
 
           // 2. Adaptive Dark Overlay for AR Contrast
           Container(color: Colors.black.withValues(alpha: 0.3)),
 
-          // 3. True 3D AR Spherical Painter
+          // 3. True AR Compass Painter (Draws the Horizon, Arc, and Sun)
           CustomPaint(
-            painter: _TrueARSphericalPainter(
+            painter: _TrueARCylindricalPainter(
               heading: _heading,
               pitch: _pitch,
               latitude: activeLat,
@@ -219,28 +224,32 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
 
           // 4. Top Telemetry HUD
           Positioned(
-            top: 50 + safePadding.top,
+            top: 24,
             left: 0,
             right: 0,
             child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white24),
-                ),
-                child: Text(
-                  'AZIMUTH: ${_heading.toStringAsFixed(0)}°  |  TILT: ${_pitch.toStringAsFixed(0)}°',
-                  style: GoogleFonts.outfit(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.0,
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Text(
+                      'AZIMUTH: ${_heading.toStringAsFixed(0)}°  |  TILT: ${_pitch.toStringAsFixed(0)}°',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
@@ -248,7 +257,7 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
           // 5. Season Toggles
           if (activeLat != null && activeLon != null)
             Positioned(
-              top: 110 + safePadding.top,
+              top: 80,
               left: 0,
               right: 0,
               child: Center(
@@ -272,12 +281,12 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
               ),
             ),
 
-          // 6. Info Button
+          // 6. Restored Info Button (Aligned to bottom right safe area)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
-            bottom: _showInstructions ? -100 : 32 + safePadding.bottom,
-            right: 24,
+            bottom: _showInstructions ? -100 : 24 + safePadding.bottom,
+            right: 24 + safePadding.right,
             child: FloatingActionButton.extended(
               backgroundColor: theme.colorScheme.primary,
               icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
@@ -300,8 +309,8 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
             bottom: _showInstructions ? 0 : -450,
-            left: 0,
-            right: 0,
+            left: safePadding.left,
+            right: safePadding.right,
             child: GestureDetector(
               onVerticalDragEnd: (details) {
                 if (details.primaryVelocity != null &&
@@ -310,11 +319,16 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
                 }
               },
               child: Container(
+                constraints: BoxConstraints(
+                  maxHeight:
+                      MediaQuery.of(context).size.height *
+                      0.7, // Prevents covering the whole screen in landscape
+                ),
                 padding: EdgeInsets.fromLTRB(
                   24,
                   16,
                   24,
-                  40 + safePadding.bottom,
+                  16 + safePadding.bottom,
                 ),
                 decoration: BoxDecoration(
                   color: isDark
@@ -331,80 +345,82 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
                     ),
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 5,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: theme.dividerColor,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.explore_rounded,
-                          color: Colors.amber,
-                          size: 22,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 5,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: theme.dividerColor,
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'TRUE 3D HORIZON SCANNER',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: Colors.amber.shade600,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5,
-                            fontSize: 12,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.explore_rounded,
+                            color: Colors.amber,
+                            size: 22,
                           ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'WIDE HORIZON SCANNER',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.amber.shade600,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.5,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Pan your camera left and right along the horizon line.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.outfit(
+                          color: theme.colorScheme.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          height: 1.4,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Point the camera up to track the sun across the sky.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
-                        color: theme.colorScheme.onSurface,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        height: 1.4,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Find the exact Sunrise and Sunset markers. The amber line perfectly maps the sun\'s 3D path over your roof. Check if trees block this arc!',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.plusJakartaSans(
-                        color: theme.iconTheme.color?.withValues(alpha: 0.8),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        height: 1.5,
+                      const SizedBox(height: 8),
+                      Text(
+                        'Find the exact Sunrise and Sunset markers on your screen. The amber line between them shows the exact traveling path of the sun. Check if any trees block this path!',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.plusJakartaSans(
+                          color: theme.iconTheme.color?.withValues(alpha: 0.8),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          height: 1.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Swipe down to hide this panel.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.plusJakartaSans(
-                        color: theme.iconTheme.color?.withValues(alpha: 0.8),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                      const SizedBox(height: 12),
+                      Text(
+                        'Swipe down to hide this panel.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.plusJakartaSans(
+                          color: theme.iconTheme.color?.withValues(alpha: 0.8),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
 
-          // 8. Back Button
+          // 8. Back Button (Aligned to Top Left Safe Area)
           Positioned(
-            top: 50 + safePadding.top,
-            left: 16,
+            top: 24,
+            left: 24 + safePadding.left,
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.black45,
@@ -455,16 +471,16 @@ class _ShadingAnalysisScreenState extends ConsumerState<ShadingAnalysisScreen> {
 }
 
 // -------------------------------------------------------------
-// TRUE AR 3D SPHERICAL PAINTER (Perfect Zenith / Sky Tracking)
+// CYLINDRICAL AR SUN PATH PAINTER (Rock-Solid 2D Projection)
 // -------------------------------------------------------------
-class _TrueARSphericalPainter extends CustomPainter {
+class _TrueARCylindricalPainter extends CustomPainter {
   final double heading;
   final double pitch;
   final double? latitude;
   final double? longitude;
   final DateTime simulationDate;
 
-  _TrueARSphericalPainter({
+  _TrueARCylindricalPainter({
     required this.heading,
     required this.pitch,
     this.latitude,
@@ -474,45 +490,28 @@ class _TrueARSphericalPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Ultra-Wide FOV to ensure the path doesn't easily leave the screen boundaries
+    // A wider FOV perfect for capturing the broad winter arc in Landscape mode
     double fovX = 75.0;
-    double fovY = 110.0;
+    double fovY = 45.0;
+
+    double pixelsPerDegreeX = size.width / fovX;
+    double pixelsPerDegreeY = size.height / fovY;
 
     double centerX = size.width / 2;
     double centerY = size.height / 2;
 
-    double focalLengthX = centerX / math.tan((fovX / 2.0) * math.pi / 180.0);
-    double focalLengthY = centerY / math.tan((fovY / 2.0) * math.pi / 180.0);
-
-    // 3D SPHERICAL PROJECTION MATRIX
-    // Completely solves the "pointing at sky" glitch by calculating true 3D geometry
+    // Rock-Solid Cylindrical Projection
+    // This perfectly maps spherical Azimuth/Elevation to flat screen coordinates
+    // without the "fisheye" distortion or axis flipping of 3D matrix math.
     Offset? projectPoint(double az, double el) {
-      double azRad = az * math.pi / 180.0;
-      double elRad = el * math.pi / 180.0;
+      double dx = _normalizeAngle(az - heading);
+      double dy = el - pitch;
 
-      // 1. Spherical to Cartesian (Earth space coordinates)
-      double sx = math.cos(elRad) * math.sin(azRad);
-      double sy = math.cos(elRad) * math.cos(azRad);
-      double sz = math.sin(elRad);
+      // Do not render points that are physically behind the user
+      if (dx.abs() > 120) return null;
 
-      // 2. Yaw (Heading) Rotation
-      double hRad = heading * math.pi / 180.0;
-      double x1 = sx * math.cos(hRad) - sy * math.sin(hRad);
-      double y1 = sx * math.sin(hRad) + sy * math.cos(hRad);
-      double z1 = sz;
-
-      // 3. Pitch (Tilt) Rotation
-      double pRad = pitch * math.pi / 180.0;
-      double x2 = x1;
-      double y2 = y1 * math.cos(pRad) + z1 * math.sin(pRad);
-      double z2 = -y1 * math.sin(pRad) + z1 * math.cos(pRad);
-
-      // Cull anything physically behind the camera lens
-      if (y2 <= 0.0) return null;
-
-      // 4. Project 3D vector down to 2D screen coordinates
-      double px = centerX + (x2 / y2) * focalLengthX;
-      double py = centerY - (z2 / y2) * focalLengthY;
+      double px = centerX + (dx * pixelsPerDegreeX);
+      double py = centerY - (dy * pixelsPerDegreeY);
 
       return Offset(px, py);
     }
@@ -522,17 +521,13 @@ class _TrueARSphericalPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
-    // 1. Draw the Curved True Horizon
-    Offset? prevHorizonPt;
-    for (int az = 0; az <= 360; az += 2) {
-      Offset? pt = projectPoint(az.toDouble(), 0.0);
-      if (pt != null && prevHorizonPt != null) {
-        if ((pt.dx - prevHorizonPt.dx).abs() < size.width) {
-          canvas.drawLine(prevHorizonPt, pt, horizonPaint);
-        }
-      }
-      prevHorizonPt = pt;
-    }
+    // 1. Draw the True Horizon Line (Always straight and perfectly anchored)
+    double horizonOffsetY = pitch * pixelsPerDegreeY;
+    canvas.drawLine(
+      Offset(0, centerY + horizonOffsetY),
+      Offset(size.width, centerY + horizonOffsetY),
+      horizonPaint,
+    );
 
     // 2. Draw Compass Direction Markers (N, E, S, W)
     List<int> compassPoints = [0, 90, 180, 270];
@@ -541,13 +536,16 @@ class _TrueARSphericalPainter extends CustomPainter {
     for (int i = 0; i < compassPoints.length; i++) {
       Offset? pt = projectPoint(compassPoints[i].toDouble(), 0.0);
 
-      // Render marker if it's anywhere vaguely on screen
-      if (pt != null && pt.dx > -200 && pt.dx < size.width + 200) {
+      // Only draw if it's currently visible on screen
+      if (pt != null && pt.dx > -100 && pt.dx < size.width + 100) {
+        // Vertical tick mark on the horizon
         canvas.drawLine(
           Offset(pt.dx, pt.dy - 10),
           Offset(pt.dx, pt.dy + 10),
           horizonPaint,
         );
+
+        // Label
         _drawTextLabel(
           canvas,
           compassLabels[i],
@@ -558,30 +556,7 @@ class _TrueARSphericalPainter extends CustomPainter {
       }
     }
 
-    // 3. Zenith Target (Top of the Sky Dome)
-    Offset? zenithPt = projectPoint(0, 90.0);
-    if (zenithPt != null &&
-        zenithPt.dy > -100 &&
-        zenithPt.dy < size.height + 100) {
-      canvas.drawCircle(
-        zenithPt,
-        12,
-        Paint()
-          ..color = Colors.blueAccent.withValues(alpha: 0.5)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
-      canvas.drawCircle(zenithPt, 2, Paint()..color = Colors.blueAccent);
-      _drawTextLabel(
-        canvas,
-        'ZENITH',
-        Offset(zenithPt.dx, zenithPt.dy - 20),
-        Colors.blueAccent,
-        isSmall: true,
-      );
-    }
-
-    // 4. Draw the Sun's Traveling Path and Exact Sunrise/Sunset
+    // 3. Draw the Sun's Traveling Path and Exact Sunrise/Sunset
     if (latitude != null && longitude != null) {
       DateTime startOfDay = DateTime(
         simulationDate.year,
@@ -599,7 +574,7 @@ class _TrueARSphericalPainter extends CustomPainter {
 
       bool foundSunrise = false;
 
-      // Map the 3D arc through the sky
+      // Loop through every 15 minutes of the 24-hour day to map the path
       for (int min = 0; min <= 24 * 60; min += 15) {
         DateTime evalTime = startOfDay.add(Duration(minutes: min));
         SunPosition pos = SunPositionCalculator.getPosition(
@@ -608,37 +583,40 @@ class _TrueARSphericalPainter extends CustomPainter {
           longitude!,
         );
 
-        // We only render the arc that is above the ground
+        // We only care about points above (or slightly below) the horizon
         if (pos.elevation > -3.0) {
           Offset? pt = projectPoint(pos.azimuth, pos.elevation);
           rawPathPoints.add(pt);
 
+          // Drop a time marker every 2 hours
           if (pt != null && evalTime.minute == 0 && evalTime.hour % 2 == 0) {
             timeMarkers.add({'offset': pt, 'label': _formatTime(evalTime)});
           }
 
+          // Detect EXACT Sunrise (First point crossing above horizon)
           if (!foundSunrise && pos.elevation >= 0.0 && pt != null) {
             exactSunrise = {'offset': pt, 'time': evalTime};
             foundSunrise = true;
           }
 
+          // Constantly update Sunset, the very last point above horizon becomes the Sunset!
           if (pos.elevation >= 0.0 && pt != null) {
             exactSunset = {'offset': pt, 'time': evalTime};
           }
         }
       }
 
-      // Draw the continuous 3D Sun Path Curve
+      // Draw the continuous Sun Path curve
       if (rawPathPoints.length > 1) {
         Paint pathPaint = Paint()
-          ..color = Colors.amber.withValues(alpha: 0.6)
+          ..color = Colors.amber.withValues(alpha: 0.5)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 10.0
+          ..strokeWidth = 8.0
           ..strokeCap = StrokeCap.round;
 
         for (int i = 0; i < rawPathPoints.length - 1; i++) {
           if (rawPathPoints[i] != null && rawPathPoints[i + 1] != null) {
-            // Cull excessive off-screen lines
+            // Optimization: Only draw line segments that are remotely visible
             if ((rawPathPoints[i]!.dx > -500 &&
                     rawPathPoints[i]!.dx < size.width + 500) ||
                 (rawPathPoints[i + 1]!.dx > -500 &&
@@ -653,13 +631,14 @@ class _TrueARSphericalPainter extends CustomPainter {
         }
       }
 
+      // Draw normal time markers
       for (var marker in timeMarkers) {
         Offset pt = marker['offset'];
-        if (pt.dx > -100 &&
-            pt.dx < size.width + 100 &&
-            pt.dy > -100 &&
-            pt.dy < size.height + 100) {
-          canvas.drawCircle(pt, 5, Paint()..color = Colors.white54);
+        if (pt.dx > -50 &&
+            pt.dx < size.width + 50 &&
+            pt.dy > -50 &&
+            pt.dy < size.height + 50) {
+          canvas.drawCircle(pt, 4, Paint()..color = Colors.white54);
           _drawTextLabel(
             canvas,
             marker['label'],
@@ -704,7 +683,7 @@ class _TrueARSphericalPainter extends CustomPainter {
         }
       }
 
-      // 5. Draw Current Live Sun Position Indicator
+      // 4. Draw Current Live Sun Position Indicator (If currently daytime)
       DateTime realNow = DateTime.now();
       DateTime simulatedCurrentTime = DateTime(
         simulationDate.year,
@@ -724,17 +703,17 @@ class _TrueARSphericalPainter extends CustomPainter {
         Offset? cPt = projectPoint(currentPos.azimuth, currentPos.elevation);
 
         if (cPt != null &&
-            cPt.dx > -100 &&
-            cPt.dx < size.width + 100 &&
-            cPt.dy > -100 &&
-            cPt.dy < size.height + 100) {
+            cPt.dx > -50 &&
+            cPt.dx < size.width + 50 &&
+            cPt.dy > -50 &&
+            cPt.dy < size.height + 50) {
           canvas.drawCircle(cPt, 16, Paint()..color = Colors.amberAccent);
           canvas.drawCircle(
             cPt,
-            40,
+            36,
             Paint()
-              ..color = Colors.amber.withValues(alpha: 0.5)
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20),
+              ..color = Colors.amber.withValues(alpha: 0.6)
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15),
           );
         }
       }
@@ -748,17 +727,20 @@ class _TrueARSphericalPainter extends CustomPainter {
     Offset pt,
     Color color,
   ) {
+    // Draw the anchor dot
     canvas.drawCircle(pt, 6, Paint()..color = color);
     canvas.drawCircle(pt, 12, Paint()..color = color.withValues(alpha: 0.4));
 
+    // Draw a line popping up from the horizon
     canvas.drawLine(
       pt,
-      Offset(pt.dx, pt.dy - 35),
+      Offset(pt.dx, pt.dy - 30),
       Paint()
         ..color = color
         ..strokeWidth = 2,
     );
 
+    // Draw the text box
     TextPainter tp = TextPainter(
       text: TextSpan(
         children: [
@@ -774,7 +756,7 @@ class _TrueARSphericalPainter extends CustomPainter {
             text: time,
             style: GoogleFonts.outfit(
               color: Colors.white,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -785,17 +767,18 @@ class _TrueARSphericalPainter extends CustomPainter {
     );
     tp.layout();
 
+    // Background plate for text
     Rect bgRect = Rect.fromCenter(
-      center: Offset(pt.dx, pt.dy - 50),
+      center: Offset(pt.dx, pt.dy - 45),
       width: tp.width + 16,
-      height: tp.height + 10,
+      height: tp.height + 8,
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(bgRect, const Radius.circular(8)),
       Paint()..color = Colors.black87,
     );
 
-    tp.paint(canvas, Offset(pt.dx - tp.width / 2, pt.dy - 50 - tp.height / 2));
+    tp.paint(canvas, Offset(pt.dx - tp.width / 2, pt.dy - 45 - tp.height / 2));
   }
 
   void _drawTextLabel(
@@ -810,7 +793,7 @@ class _TrueARSphericalPainter extends CustomPainter {
         text: text,
         style: GoogleFonts.plusJakartaSans(
           color: color,
-          fontSize: isSmall ? 10 : 13,
+          fontSize: isSmall ? 10 : 12,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -818,6 +801,17 @@ class _TrueARSphericalPainter extends CustomPainter {
     );
     tp.layout();
     tp.paint(canvas, Offset(pt.dx - tp.width / 2, pt.dy - 20));
+  }
+
+  // Prevents the line from glitching back across the screen when crossing North (360 -> 0)
+  double _normalizeAngle(double angle) {
+    while (angle > 180) {
+      angle -= 360;
+    }
+    while (angle <= -180) {
+      angle += 360;
+    }
+    return angle;
   }
 
   String _formatTime(DateTime t) {
@@ -829,7 +823,7 @@ class _TrueARSphericalPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _TrueARSphericalPainter oldDelegate) {
+  bool shouldRepaint(covariant _TrueARCylindricalPainter oldDelegate) {
     return oldDelegate.heading != heading ||
         oldDelegate.pitch != pitch ||
         oldDelegate.simulationDate != simulationDate;

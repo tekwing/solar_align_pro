@@ -135,7 +135,9 @@ class _SplashScreenState extends State<SplashScreen>
                                       shape: BoxShape.circle,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.orange.withOpacity(.35),
+                                          color: Colors.orange.withValues(
+                                            alpha: .35,
+                                          ),
                                           blurRadius: 100,
                                           spreadRadius: 30,
                                         ),
@@ -250,7 +252,7 @@ class _SplashScreenState extends State<SplashScreen>
                             Text(
                               "Professional Solar Alignment",
                               style: TextStyle(
-                                color: Colors.white.withOpacity(.75),
+                                color: Colors.white.withValues(alpha: .75),
                                 fontSize: 14,
                                 letterSpacing: 2,
                               ),
@@ -345,7 +347,7 @@ class ParticlePainter extends CustomPainter {
     final paint = Paint();
 
     for (int i = 0; i < 60; i++) {
-      paint.color = Colors.white.withOpacity(0.15);
+      paint.color = Colors.white.withValues(alpha: 0.15);
 
       canvas.drawCircle(
         Offset((i * 37 % size.width), (i * 91 % size.height)),

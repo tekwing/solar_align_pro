@@ -102,6 +102,8 @@ class _SitePhotoScreenState extends ConsumerState<SitePhotoScreen> {
                         .addPhotoToProject(widget.projectId, savedImagePath);
 
                     // 3. Show success and leave screen
+                    if (!context.mounted) return;
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(

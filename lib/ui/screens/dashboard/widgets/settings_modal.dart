@@ -254,14 +254,16 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                                 theme: theme,
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    if (lonCtrl.text.isNotEmpty)
+                                    if (lonCtrl.text.isNotEmpty) {
                                       return 'Required';
+                                    }
                                     return null;
                                   }
                                   final num = double.tryParse(value);
                                   if (num == null) return 'Invalid number';
-                                  if (num < -90 || num > 90)
+                                  if (num < -90 || num > 90) {
                                     return 'Must be -90 to 90';
+                                  }
                                   return null;
                                 },
                               ),
@@ -275,14 +277,16 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                                 theme: theme,
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    if (latCtrl.text.isNotEmpty)
+                                    if (latCtrl.text.isNotEmpty) {
                                       return 'Required';
+                                    }
                                     return null;
                                   }
                                   final num = double.tryParse(value);
                                   if (num == null) return 'Invalid number';
-                                  if (num < -180 || num > 180)
+                                  if (num < -180 || num > 180) {
                                     return 'Must be -180 to 180';
+                                  }
                                   return null;
                                 },
                               ),
