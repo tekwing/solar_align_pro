@@ -38,6 +38,11 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
     text: '9.5',
   );
 
+  // Financial Controller (NEW)
+  final TextEditingController _priceController = TextEditingController(
+    text: '0.15',
+  );
+
   int _panelCount = 0;
   double _systemSizeKw = 0.0;
   double _annualGenerationKwh = 0.0;
@@ -49,7 +54,6 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
 
   // Constants for Solar Math
   final double panelSizeSqMeters = 2.0; // Standard 400W panel + clearance area
-  final double electricityRatePerKwh = 0.15; // Example: $0.15 per kWh
   final double sqMetersToSqFeet = 10.7639; // Conversion factor
 
   @override
@@ -58,6 +62,7 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
     _wattageController.dispose();
     _vocController.dispose();
     _impController.dispose();
+    _priceController.dispose(); // Clean up the new controller
     super.dispose();
   }
 
@@ -80,6 +85,10 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
     double panelPower = double.tryParse(_wattageController.text) ?? 400.0;
     double panelVoc = double.tryParse(_vocController.text) ?? 40.5;
     double panelImp = double.tryParse(_impController.text) ?? 9.5;
+
+    // Parse custom electricity rate for dynamic savings
+    double electricityRatePerKwh =
+        double.tryParse(_priceController.text) ?? 0.15;
 
     // Convert back to Sq Meters for standard panel math if user is in Sq Feet
     double areaInSqMeters = isMetric
@@ -142,6 +151,8 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
 
       // (System Size * GPS Sun Hours * 365 Days * 80% Efficiency)
       _annualGenerationKwh = _systemSizeKw * sunHours * 365 * 0.8;
+
+      // Dynamic Savings calculation using user-input unit price
       _annualSavings = _annualGenerationKwh * electricityRatePerKwh;
     });
   }
@@ -435,9 +446,29 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 32),
+
+                // 4. Financial Parameters (NEW Section)
+                Text(
+                  'FINANCIAL PARAMETERS',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: theme.iconTheme.color?.withValues(alpha: 0.5),
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildCompactTextField(
+                  controller: _priceController,
+                  label: 'Utility Rate ($currency/kWh)',
+                  icon: Icons.payments_rounded,
+                  theme: theme,
+                  onChanged: (_) => _calculateSolar(isMetric),
+                ),
                 const SizedBox(height: 40),
 
-                // 4. Calculation Results Cards
+                // 5. Calculation Results Cards
                 Text(
                   'SYSTEM CAPABILITIES',
                   style: GoogleFonts.plusJakartaSans(
@@ -479,30 +510,36 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
                   children: [
                     Expanded(
                       child: _buildResultCard(
-                        'Annual Gen.',
-                        '${_annualGenerationKwh.toStringAsFixed(0)} kWh',
+                        'Annual Generation',
+                        '${_annualGenerationKwh.toStringAsFixed(0)} kWh/unit',
                         Icons.solar_power_rounded,
                         const Color(0xFF8B5CF6),
                         theme,
                         isDark,
+                        // NEW: Dynamic Monthly Subtitle
+                        subtitle:
+                            '≈ ${(_annualGenerationKwh / 12).toStringAsFixed(0)} / mo',
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: _buildResultCard(
-                        'Est. Savings',
-                        '$currency${_annualSavings.toStringAsFixed(0)}/yr',
+                        'Annual Savings',
+                        '$currency${_annualSavings.toStringAsFixed(0)}',
                         Icons.savings_rounded,
                         const Color(0xFF10B981),
                         theme,
                         isDark,
+                        // NEW: Dynamic Monthly Subtitle
+                        subtitle:
+                            '≈ $currency${(_annualSavings / 12).toStringAsFixed(0)} / mo',
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 48),
 
-                // 5. Electrical Topologies List (Multiple Options)
+                // 6. Electrical Topologies List (Multiple Options)
                 if (_topologies.isNotEmpty) ...[
                   Text(
                     'AVAILABLE ELECTRICAL TOPOLOGIES',
@@ -533,7 +570,7 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
                   const SizedBox(height: 32),
                 ],
 
-                // 6. Premium Save Button
+                // 7. Premium Save Button
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -584,11 +621,62 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            'Saved: Pattern ${_selectedTopologyIndex + 1} Selected!',
+                          content: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check_circle_outline_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Estimation Saved',
+                                      style: GoogleFonts.outfit(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Pattern ${_selectedTopologyIndex + 1} selected successfully.',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          backgroundColor: Colors.green,
+                          backgroundColor: const Color(
+                            0xFF10B981,
+                          ), // Premium Emerald
                           behavior: SnackBarBehavior.floating,
+                          margin: const EdgeInsets.only(
+                            bottom: 24,
+                            left: 24,
+                            right: 24,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 10,
                         ),
                       );
                       Navigator.pop(context);
@@ -678,8 +766,9 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
     IconData icon,
     Color iconColor,
     ThemeData theme,
-    bool isDark,
-  ) {
+    bool isDark, {
+    String? subtitle, // NEW: Optional subtitle property
+  }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -706,13 +795,18 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
             child: Icon(icon, color: iconColor, size: 22),
           ),
           const SizedBox(height: 16),
-          Text(
-            value,
-            style: GoogleFonts.outfit(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: theme.colorScheme.onSurface,
-              height: 1.1,
+          // NEW: FittedBox prevents the "kWh/unit" text from wrapping or breaking on narrow screens
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: GoogleFonts.outfit(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: theme.colorScheme.onSurface,
+                height: 1.1,
+              ),
             ),
           ),
           const SizedBox(height: 4),
@@ -724,6 +818,25 @@ class _RoofCalculatorScreenState extends ConsumerState<RoofCalculatorScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
+          // NEW: Subtitle rendering logic
+          if (subtitle != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                subtitle,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  color: iconColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

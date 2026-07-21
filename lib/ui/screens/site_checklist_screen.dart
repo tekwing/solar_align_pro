@@ -18,9 +18,23 @@ class SiteChecklistScreen extends ConsumerStatefulWidget {
 class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // --- Structural State ---
-  String _selectedRoof = 'Asphalt Shingle';
-  String _selectedSpacing = '24" On Center';
+  // --- Hybrid Editable Dropdown Controllers ---
+  final TextEditingController _roofController = TextEditingController(
+    text: 'Asphalt Shingle',
+  );
+  final TextEditingController _spacingController = TextEditingController(
+    text: '24" On Center',
+  );
+  final TextEditingController _wireGaugeController = TextEditingController(
+    text: '10 AWG',
+  );
+  final TextEditingController _inverterController = TextEditingController(
+    text: 'String Inverter',
+  );
+  final TextEditingController _batteryTypeController = TextEditingController(
+    text: 'None',
+  );
+  final TextEditingController _notesController = TextEditingController();
 
   final List<String> _roofTypes = [
     'Asphalt Shingle',
@@ -40,7 +54,6 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
   final TextEditingController _totalPanelsController = TextEditingController();
   final TextEditingController _panelVocController = TextEditingController();
   final TextEditingController _panelImpController = TextEditingController();
-  String _wireGauge = '10 AWG';
 
   final List<String> _wireSizes = [
     '12 AWG',
@@ -48,11 +61,9 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
     '8 AWG',
     '6 AWG',
     '4 AWG',
-    'Other',
   ];
 
   // --- AC & Inverter State ---
-  String _inverterType = 'String Inverter';
   final TextEditingController _inverterPowerController =
       TextEditingController();
   final TextEditingController _inverterVoltageController =
@@ -66,10 +77,22 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
     'String w/ Optimizers',
   ];
 
+  // --- Battery State ---
+  final TextEditingController _batteryCapacityController =
+      TextEditingController();
+  final TextEditingController _batteryVoltageController =
+      TextEditingController();
+
+  final List<String> _batteryTypes = [
+    'None',
+    'Lithium Iron Phosphate (LFP)',
+    'Lithium Ion (NMC)',
+    'Lead Acid (AGM)',
+  ];
+
   @override
   void initState() {
     super.initState();
-    // Load pre-existing project data after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProjectData();
     });
@@ -81,16 +104,42 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
         .firstWhere((p) => p.id == widget.projectId);
 
     // 1. Pre-fill structural and checklist data if already saved
-    if (project.roofMaterial != null &&
-        _roofTypes.contains(project.roofMaterial)) {
-      setState(() => _selectedRoof = project.roofMaterial!);
+    if (project.roofMaterial != null) {
+      _roofController.text = project.roofMaterial!;
     }
-    if (project.rafterSpacing != null &&
-        _spacingOptions.contains(project.rafterSpacing)) {
-      setState(() => _selectedSpacing = project.rafterSpacing!);
+    if (project.rafterSpacing != null) {
+      _spacingController.text = project.rafterSpacing!;
+    }
+    if (project.wireGauge != null) {
+      _wireGaugeController.text = project.wireGauge!;
+    }
+    if (project.inverterType != null) {
+      _inverterController.text = project.inverterType!;
+    }
+    if (project.additionalNotes != null) {
+      _notesController.text = project.additionalNotes!;
     }
     if (project.mainPanelAmps != null) {
       _breakerSizeController.text = project.mainPanelAmps.toString();
+    }
+
+    // NEW: Load the new inverter specs!
+    if (project.inverterPowerKw != null) {
+      _inverterPowerController.text = project.inverterPowerKw.toString();
+    }
+    if (project.inverterVoltage != null) {
+      _inverterVoltageController.text = project.inverterVoltage.toString();
+    }
+
+    // Load Battery Data
+    if (project.batteryType != null) {
+      _batteryTypeController.text = project.batteryType!;
+    }
+    if (project.batteryCapacityKwh != null) {
+      _batteryCapacityController.text = project.batteryCapacityKwh.toString();
+    }
+    if (project.batteryVoltage != null) {
+      _batteryVoltageController.text = project.batteryVoltage.toString();
     }
 
     // 2. Pre-fill calculations from Roof Calculator
@@ -98,14 +147,13 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
       _totalPanelsController.text = project.estimatedPanels.toString();
     }
 
-    // Reverse-calculate single Panel Voc and Imp from the saved String/Array totals
     if (project.stringVoc != null &&
         project.panelsInSeries != null &&
         project.panelsInSeries! > 0) {
       double singlePanelVoc = project.stringVoc! / project.panelsInSeries!;
       _panelVocController.text = singlePanelVoc
           .toStringAsFixed(1)
-          .replaceAll(RegExp(r'\.0$'), ''); // Clean decimal
+          .replaceAll(RegExp(r'\.0$'), '');
     }
 
     if (project.arrayImp != null &&
@@ -120,6 +168,14 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
 
   @override
   void dispose() {
+    _roofController.dispose();
+    _spacingController.dispose();
+    _wireGaugeController.dispose();
+    _inverterController.dispose();
+    _batteryTypeController.dispose();
+    _batteryCapacityController.dispose();
+    _batteryVoltageController.dispose();
+    _notesController.dispose();
     _totalPanelsController.dispose();
     _panelVocController.dispose();
     _panelImpController.dispose();
@@ -133,6 +189,7 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -159,7 +216,7 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomPadding),
         child: Form(
           key: _formKey,
           child: Column(
@@ -219,23 +276,20 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
                 isDark: isDark,
                 child: Column(
                   children: [
-                    _buildDropdownField(
+                    _buildEditableDropdownField(
+                      controller: _roofController,
                       label: 'Roof Material',
-                      value: _selectedRoof,
                       items: _roofTypes,
                       icon: Icons.roofing_rounded,
                       theme: theme,
-                      onChanged: (val) => setState(() => _selectedRoof = val!),
                     ),
                     const SizedBox(height: 24),
-                    _buildDropdownField(
+                    _buildEditableDropdownField(
+                      controller: _spacingController,
                       label: 'Rafter Spacing',
-                      value: _selectedSpacing,
                       items: _spacingOptions,
                       icon: Icons.format_line_spacing_rounded,
                       theme: theme,
-                      onChanged: (val) =>
-                          setState(() => _selectedSpacing = val!),
                     ),
                   ],
                 ),
@@ -276,13 +330,12 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
                       theme: theme,
                     ),
                     const SizedBox(height: 24),
-                    _buildDropdownField(
+                    _buildEditableDropdownField(
+                      controller: _wireGaugeController,
                       label: 'DC Home Run Wire Gauge',
-                      value: _wireGauge,
                       items: _wireSizes,
                       icon: Icons.cable_rounded,
                       theme: theme,
-                      onChanged: (val) => setState(() => _wireGauge = val!),
                     ),
                     const SizedBox(height: 24),
                     _buildTextField(
@@ -305,13 +358,12 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
                 isDark: isDark,
                 child: Column(
                   children: [
-                    _buildDropdownField(
+                    _buildEditableDropdownField(
+                      controller: _inverterController,
                       label: 'Inverter Type',
-                      value: _inverterType,
                       items: _inverterTypes,
                       icon: Icons.account_tree_rounded,
                       theme: theme,
-                      onChanged: (val) => setState(() => _inverterType = val!),
                     ),
                     const SizedBox(height: 24),
                     _buildTextField(
@@ -321,6 +373,7 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
                       icon: Icons.bolt_rounded,
                       suffixText: 'kW',
                       theme: theme,
+                      isRequired: false,
                     ),
                     const SizedBox(height: 24),
                     _buildTextField(
@@ -330,6 +383,100 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
                       icon: Icons.power_rounded,
                       suffixText: 'V',
                       theme: theme,
+                      isRequired: false,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              _buildSectionHeader('ENERGY STORAGE (BATTERY)', theme),
+              const SizedBox(height: 12),
+              _buildCardWrapper(
+                theme: theme,
+                isDark: isDark,
+                child: Column(
+                  children: [
+                    _buildEditableDropdownField(
+                      controller: _batteryTypeController,
+                      label: 'Battery Chemistry / Type',
+                      items: _batteryTypes,
+                      icon: Icons.battery_charging_full_rounded,
+                      theme: theme,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildTextField(
+                      controller: _batteryCapacityController,
+                      label: 'Total Capacity',
+                      hint: 'e.g. 13.5',
+                      icon: Icons.battery_saver_rounded,
+                      suffixText: 'kWh',
+                      theme: theme,
+                      isRequired: false,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildTextField(
+                      controller: _batteryVoltageController,
+                      label: 'Battery Bank Voltage',
+                      hint: 'e.g. 48',
+                      icon: Icons.electrical_services_rounded,
+                      suffixText: 'V',
+                      theme: theme,
+                      isRequired: false,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              _buildSectionHeader('ADDITIONAL INFORMATION', theme),
+              const SizedBox(height: 12),
+              _buildCardWrapper(
+                theme: theme,
+                isDark: isDark,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Site Notes & Hazards',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _notesController,
+                      maxLines: 4,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      decoration: InputDecoration(
+                        hintText:
+                            'Type any extra site details, hazards, access codes, or requirements here...',
+                        hintStyle: GoogleFonts.plusJakartaSans(
+                          color: theme.iconTheme.color?.withValues(alpha: 0.4),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        filled: true,
+                        fillColor: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.04,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -359,22 +506,82 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
                 child: ElevatedButton(
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
-                      // TODO: Update Project Model to accept all the new Engineering variables
                       await ref
                           .read(projectListProvider.notifier)
                           .saveChecklist(
                             widget.projectId,
-                            _selectedRoof,
-                            _selectedSpacing,
+                            _roofController.text,
+                            _spacingController.text,
                             int.tryParse(_breakerSizeController.text) ?? 200,
+                            _inverterController.text,
+                            _wireGaugeController.text,
+                            _notesController.text,
+                            _batteryTypeController.text,
+                            double.tryParse(_batteryCapacityController.text),
+                            double.tryParse(_batteryVoltageController.text),
+                            // IMPORTANT: Passing the new parameters to the provider!
+                            double.tryParse(_inverterPowerController.text),
+                            double.tryParse(_inverterVoltageController.text),
                           );
 
                       if (!context.mounted) return;
 
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Engineering Checklist Saved!'),
-                          backgroundColor: Colors.green,
+                        SnackBar(
+                          content: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.engineering_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Engineering Data Saved',
+                                      style: GoogleFonts.outfit(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Checklist updated successfully.',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          backgroundColor: const Color(0xFF10B981),
+                          behavior: SnackBarBehavior.floating,
+                          margin: const EdgeInsets.only(
+                            bottom: 24,
+                            left: 24,
+                            right: 24,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 10,
                         ),
                       );
                       Navigator.pop(context);
@@ -450,13 +657,14 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
     );
   }
 
-  Widget _buildDropdownField({
+  // --- Hybrid Editable Dropdown ---
+  Widget _buildEditableDropdownField({
+    required TextEditingController controller,
     required String label,
-    required String value,
     required List<String> items,
     required IconData icon,
     required ThemeData theme,
-    required ValueChanged<String?> onChanged,
+    bool isRequired = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,23 +678,50 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: value,
-          icon: Icon(
-            Icons.expand_more_rounded,
-            color: theme.colorScheme.primary,
-          ),
-          dropdownColor: theme.cardColor,
+        TextFormField(
+          controller: controller,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 15,
             fontWeight: FontWeight.w700,
             color: theme.colorScheme.onSurface,
           ),
           decoration: InputDecoration(
+            hintText: 'Type or select...',
+            hintStyle: GoogleFonts.plusJakartaSans(
+              color: theme.iconTheme.color?.withValues(alpha: 0.4),
+              fontWeight: FontWeight.w500,
+            ),
             prefixIcon: Icon(
               icon,
               color: theme.iconTheme.color?.withValues(alpha: 0.5),
               size: 20,
+            ),
+            suffixIcon: PopupMenuButton<String>(
+              icon: Icon(
+                Icons.expand_more_rounded,
+                color: theme.colorScheme.primary,
+              ),
+              color: theme.cardColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              onSelected: (String value) {
+                controller.text = value;
+              },
+              itemBuilder: (BuildContext context) {
+                return items.map((String choice) {
+                  return PopupMenuItem<String>(
+                    value: choice,
+                    child: Text(
+                      choice,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  );
+                }).toList();
+              },
             ),
             filled: true,
             fillColor: theme.colorScheme.onSurface.withValues(alpha: 0.04),
@@ -502,10 +737,10 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
               ),
             ),
           ),
-          items: items
-              .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-              .toList(),
-          onChanged: onChanged,
+          validator: isRequired
+              ? (value) =>
+                    (value == null || value.isEmpty) ? 'Required field' : null
+              : null,
         ),
       ],
     );
@@ -518,6 +753,7 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
     required IconData icon,
     required ThemeData theme,
     String? suffixText,
+    bool isRequired = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -583,8 +819,10 @@ class _SiteChecklistScreenState extends ConsumerState<SiteChecklistScreen> {
               ),
             ),
           ),
-          validator: (value) =>
-              (value == null || value.isEmpty) ? 'Required field' : null,
+          validator: isRequired
+              ? (value) =>
+                    (value == null || value.isEmpty) ? 'Required field' : null
+              : null,
         ),
       ],
     );

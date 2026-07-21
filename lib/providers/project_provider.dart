@@ -6,13 +6,7 @@ final projectRepositoryProvider = Provider<ProjectRepository>((ref) {
   return ProjectRepository();
 });
 
-final projectListProvider = NotifierProvider<ProjectNotifier, List<Project>>(
-  () {
-    return ProjectNotifier();
-  },
-);
-
-class ProjectNotifier extends Notifier<List<Project>> {
+class ProjectListNotifier extends Notifier<List<Project>> {
   @override
   List<Project> build() {
     return ref.read(projectRepositoryProvider).getAllProjects();
@@ -28,79 +22,60 @@ class ProjectNotifier extends Notifier<List<Project>> {
     state = ref.read(projectRepositoryProvider).getAllProjects();
   }
 
-  Future<void> removeProject(String id) async {
-    await ref.read(projectRepositoryProvider).deleteProject(id);
-    state = ref.read(projectRepositoryProvider).getAllProjects();
-  }
-
   Future<void> updateProjectLocation(
     String id,
     double lat,
-    double lng,
+    double lon,
     double tilt,
   ) async {
     final project = state.firstWhere((p) => p.id == id);
     project.latitude = lat;
-    project.longitude = lng;
+    project.longitude = lon;
     project.suggestedTilt = tilt;
     await ref.read(projectRepositoryProvider).updateProject(project);
     state = ref.read(projectRepositoryProvider).getAllProjects();
   }
 
-  Future<void> addPhotoToProject(String projectId, String imagePath) async {
-    final project = state.firstWhere((p) => p.id == projectId);
-    List<String> currentPhotos = project.photoPaths ?? [];
-    currentPhotos.add(imagePath);
-    project.photoPaths = currentPhotos;
-    await ref.read(projectRepositoryProvider).updateProject(project);
-    state = ref.read(projectRepositoryProvider).getAllProjects();
-  }
-
   Future<void> saveRoofEstimations(
-    String projectId,
+    String id,
     double area,
     int panels,
-    double systemKw,
-    double generationKwh,
+    double kw,
+    double gen,
     double savings, {
-    Map<String, dynamic>? topology, // NEW: Accept topology data
+    Map<String, dynamic>? topology,
   }) async {
-    final project = state.firstWhere((p) => p.id == projectId);
+    final project = state.firstWhere((p) => p.id == id);
     project.estimatedAreaSqM = area;
     project.estimatedPanels = panels;
-    project.estimatedSystemKw = systemKw;
-    project.estimatedGenerationKwh = generationKwh;
+    project.estimatedSystemKw = kw;
+    project.estimatedGenerationKwh = gen;
     project.estimatedSavings = savings;
 
     if (topology != null) {
-      int parallel = topology['parallelStrings'] as int;
-      int series = topology['panelsInSeries'] as int;
-
-      String configurationType = "Custom Configuration";
-      if (parallel == 1 && series > 1) {
-        configurationType = "All Series Configuration";
-      } else if (series == 1 && parallel > 1) {
-        configurationType = "All Parallel Configuration";
-      } else if (parallel > 1 && series > 1) {
-        configurationType = "Series and Parallel Configuration";
-      } else if (parallel == 1 && series == 1) {
-        configurationType = "Single Panel Configuration";
-      }
-
-      project.selectedTopologyName = configurationType;
-      project.parallelStrings = parallel;
-      project.panelsInSeries = series;
-      project.stringVoc = topology['voc'] as double;
-      project.arrayImp = topology['imp'] as double;
+      project.selectedTopologyName = topology['name'] as String?;
+      project.parallelStrings = topology['parallelStrings'] as int?;
+      project.panelsInSeries = topology['panelsInSeries'] as int?;
+      project.stringVoc = topology['voc'] as double?;
+      project.arrayImp = topology['imp'] as double?;
     }
 
     await ref.read(projectRepositoryProvider).updateProject(project);
     state = ref.read(projectRepositoryProvider).getAllProjects();
   }
 
-  Future<void> saveAlignment(String projectId, double azimuth) async {
-    final project = state.firstWhere((p) => p.id == projectId);
+  Future<void> saveAlignment(String id, double azimuth) async {
+    final project = state.firstWhere((p) => p.id == id);
     project.finalAzimuth = azimuth;
+    await ref.read(projectRepositoryProvider).updateProject(project);
+    state = ref.read(projectRepositoryProvider).getAllProjects();
+  }
+
+  // FIX: Explicitly named addPhotoToProject to resolve the Site Photo Screen error
+  Future<void> addPhotoToProject(String id, String path) async {
+    final project = state.firstWhere((p) => p.id == id);
+    project.photoPaths ??= [];
+    project.photoPaths!.add(path);
     await ref.read(projectRepositoryProvider).updateProject(project);
     state = ref.read(projectRepositoryProvider).getAllProjects();
   }
@@ -110,22 +85,48 @@ class ProjectNotifier extends Notifier<List<Project>> {
     String roofMat,
     String spacing,
     int amps,
+    String inverter,
+    String wire,
+    String notes,
+    String batteryType,
+    double? batteryCapacity,
+    double? batteryVoltage,
+    double? inverterPowerKw,
+    double? inverterVoltage,
   ) async {
     final project = state.firstWhere((p) => p.id == projectId);
+
     project.roofMaterial = roofMat;
     project.rafterSpacing = spacing;
     project.mainPanelAmps = amps;
+    project.inverterType = inverter;
+    project.wireGauge = wire;
+    project.additionalNotes = notes;
+
+    project.batteryType = batteryType;
+    project.batteryCapacityKwh = batteryCapacity;
+    project.batteryVoltage = batteryVoltage;
+    project.inverterPowerKw = inverterPowerKw;
+    project.inverterVoltage = inverterVoltage;
+
     await ref.read(projectRepositoryProvider).updateProject(project);
     state = ref.read(projectRepositoryProvider).getAllProjects();
   }
 
-  Future<void> saveShadingAnalysis(
-    String projectId,
-    double lossPercentage,
-  ) async {
-    final project = state.firstWhere((p) => p.id == projectId);
-    project.shadingLossPercentage = lossPercentage;
+  Future<void> saveShadingAnalysis(String id, double shadingLoss) async {
+    final project = state.firstWhere((p) => p.id == id);
+    project.shadingLossPercentage = shadingLoss;
     await ref.read(projectRepositoryProvider).updateProject(project);
     state = ref.read(projectRepositoryProvider).getAllProjects();
   }
+
+  Future<void> removeProject(String id) async {
+    await ref.read(projectRepositoryProvider).deleteProject(id);
+    state = ref.read(projectRepositoryProvider).getAllProjects();
+  }
 }
+
+final projectListProvider =
+    NotifierProvider<ProjectListNotifier, List<Project>>(
+      ProjectListNotifier.new,
+    );

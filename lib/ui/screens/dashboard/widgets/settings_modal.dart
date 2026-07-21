@@ -81,7 +81,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
-                    color: theme.iconTheme.color?.withValues(alpha: 0.5),
+                    color: theme.iconTheme.color?.withOpacity(0.5),
                     letterSpacing: 1.5,
                   ),
                 ),
@@ -102,7 +102,6 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                         icon: Icons.dark_mode_rounded,
                         value: isDarkMode,
                         onChanged: (val) {
-                          // FIX: Uses public custom method now
                           ref
                               .read(themeModeProvider.notifier)
                               .setThemeMode(
@@ -120,7 +119,6 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                         icon: Icons.stay_current_portrait_rounded,
                         value: isScreenActive,
                         onChanged: (val) {
-                          // FIX: Uses public set method now
                           ref.read(keepScreenActiveProvider.notifier).set(val);
                         },
                       ),
@@ -134,7 +132,6 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                         icon: Icons.volume_up_rounded,
                         value: isSoundEnabled,
                         onChanged: (val) {
-                          // FIX: Uses public set method now
                           ref.read(soundEnabledProvider.notifier).set(val);
                         },
                       ),
@@ -148,7 +145,6 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                         icon: Icons.vibration_rounded,
                         value: isVibrationEnabled,
                         onChanged: (val) {
-                          // FIX: Uses public set method now
                           ref.read(vibrationEnabledProvider.notifier).set(val);
                         },
                       ),
@@ -163,7 +159,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
-                    color: theme.iconTheme.color?.withValues(alpha: 0.5),
+                    color: theme.iconTheme.color?.withOpacity(0.5),
                     letterSpacing: 1.5,
                   ),
                 ),
@@ -194,7 +190,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
-                    color: theme.iconTheme.color?.withValues(alpha: 0.5),
+                    color: theme.iconTheme.color?.withOpacity(0.5),
                     letterSpacing: 1.5,
                   ),
                 ),
@@ -236,9 +232,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                           'Use this if GPS is inaccurate or unavailable. This will override hardware location across the app.',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13,
-                            color: theme.iconTheme.color?.withValues(
-                              alpha: 0.7,
-                            ),
+                            color: theme.iconTheme.color?.withOpacity(0.7),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -254,16 +248,14 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                                 theme: theme,
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    if (lonCtrl.text.isNotEmpty) {
+                                    if (lonCtrl.text.isNotEmpty)
                                       return 'Required';
-                                    }
                                     return null;
                                   }
                                   final num = double.tryParse(value);
                                   if (num == null) return 'Invalid number';
-                                  if (num < -90 || num > 90) {
+                                  if (num < -90 || num > 90)
                                     return 'Must be -90 to 90';
-                                  }
                                   return null;
                                 },
                               ),
@@ -277,16 +269,14 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                                 theme: theme,
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    if (latCtrl.text.isNotEmpty) {
+                                    if (latCtrl.text.isNotEmpty)
                                       return 'Required';
-                                    }
                                     return null;
                                   }
                                   final num = double.tryParse(value);
                                   if (num == null) return 'Invalid number';
-                                  if (num < -180 || num > 180) {
+                                  if (num < -180 || num > 180)
                                     return 'Must be -180 to 180';
-                                  }
                                   return null;
                                 },
                               ),
@@ -315,7 +305,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.15),
+            color: theme.colorScheme.primary.withOpacity(0.15),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -340,14 +330,13 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
               const SizedBox(height: 4),
               Container(
                 decoration: BoxDecoration(
-                  color: theme.dividerColor.withValues(alpha: 0.5),
+                  color: theme.dividerColor.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     GestureDetector(
-                      // FIX: Uses public set method now
                       onTap: () => ref
                           .read(unitProvider.notifier)
                           .set(MeasurementUnit.metric),
@@ -375,7 +364,6 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                       ),
                     ),
                     GestureDetector(
-                      // FIX: Uses public set method now
                       onTap: () => ref
                           .read(unitProvider.notifier)
                           .set(MeasurementUnit.imperial),
@@ -418,7 +406,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+            color: const Color(0xFF10B981).withOpacity(0.15),
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -446,7 +434,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: theme.iconTheme.color?.withValues(alpha: 0.6),
+                  color: theme.iconTheme.color?.withOpacity(0.6),
                 ),
               ),
             ],
@@ -455,7 +443,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.04),
+            color: theme.colorScheme.onSurface.withOpacity(0.04),
             borderRadius: BorderRadius.circular(12),
           ),
           child: DropdownButton<String>(
@@ -476,7 +464,6 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
             }).toList(),
             onChanged: (val) {
               if (val != null) {
-                // FIX: Uses public set method now
                 ref.read(currencyProvider.notifier).set(val);
               }
             },
@@ -504,7 +491,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.15),
+            color: theme.colorScheme.primary.withOpacity(0.15),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -552,16 +539,14 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(
-                alpha: value ? 0.15 : 0.05,
-              ),
+              color: theme.colorScheme.primary.withOpacity(value ? 0.15 : 0.05),
               shape: BoxShape.circle,
             ),
             child: Icon(
               icon,
               color: value
                   ? theme.colorScheme.primary
-                  : theme.iconTheme.color?.withValues(alpha: 0.5),
+                  : theme.iconTheme.color?.withOpacity(0.5),
               size: 22,
             ),
           ),
@@ -584,7 +569,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: theme.iconTheme.color?.withValues(alpha: 0.6),
+                    color: theme.iconTheme.color?.withOpacity(0.6),
                   ),
                 ),
               ],
@@ -635,11 +620,11 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: GoogleFonts.plusJakartaSans(
-              color: theme.iconTheme.color?.withValues(alpha: 0.4),
+              color: theme.iconTheme.color?.withOpacity(0.4),
               fontWeight: FontWeight.w500,
             ),
             filled: true,
-            fillColor: theme.colorScheme.onSurface.withValues(alpha: 0.04),
+            fillColor: theme.colorScheme.onSurface.withOpacity(0.04),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -685,9 +670,8 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? Colors.black : const Color(0xFF1E3A8A)).withValues(
-              alpha: 0.3,
-            ),
+            color: (isDark ? Colors.black : const Color(0xFF1E3A8A))
+                .withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -701,21 +685,126 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
             final lon = double.tryParse(lonCtrl.text);
 
             if (lat != null && lon != null) {
-              // StateProvider allows direct access to .state
               ref.read(manualLatProvider.notifier).state = lat;
               ref.read(manualLonProvider.notifier).state = lon;
 
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Manual Location Override Active!'),
-                  backgroundColor: Colors.green,
+                SnackBar(
+                  content: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.edit_location_alt_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Override Applied',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              'Manual coordinates are now active.',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white.withOpacity(0.9),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: const Color(0xFF10B981), // Premium Emerald
                   behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.only(
+                    bottom: 24,
+                    left: 24,
+                    right: 24,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 10,
                 ),
               );
               Navigator.pop(context);
             } else if (latCtrl.text.isEmpty && lonCtrl.text.isEmpty) {
               ref.read(manualLatProvider.notifier).state = null;
               ref.read(manualLonProvider.notifier).state = null;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.location_off_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Override Cleared',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              'Restored to hardware GPS tracking.',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white.withOpacity(0.9),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: theme.colorScheme.primary, // Premium Blue
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.only(
+                    bottom: 24,
+                    left: 24,
+                    right: 24,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 10,
+                ),
+              );
               Navigator.pop(context);
             }
           }

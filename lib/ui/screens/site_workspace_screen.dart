@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:geolocator/geolocator.dart'; // NEW: For GPS Requests
+import 'package:geolocator/geolocator.dart';
 
 import '../../../models/project.dart';
 import '../../../providers/project_provider.dart';
@@ -51,7 +51,8 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
               widget.projectId,
               manualLat,
               manualLon,
-              project.suggestedTilt ?? 30.0,
+              project.suggestedTilt ??
+                  manualLat.abs(), // FIX: Set tilt based on latitude
             );
       }
       return;
@@ -64,13 +65,57 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (mounted) {
+        final theme = Theme.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Please enable GPS/Location Services for accurate telemetry.',
+          SnackBar(
+            content: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.location_disabled_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Location Disabled',
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        'Please enable GPS for accurate telemetry.',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            backgroundColor: Colors.orange,
+            backgroundColor: const Color(0xFFF59E0B), // Premium Amber Warning
             behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 24, left: 24, right: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 10,
           ),
         );
       }
@@ -101,7 +146,8 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
               widget.projectId,
               position.latitude,
               position.longitude,
-              project.suggestedTilt ?? 30.0,
+              project.suggestedTilt ??
+                  position.latitude.abs(), // FIX: Set tilt based on GPS
             );
       }
     } catch (e) {
@@ -138,10 +184,11 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
 
     final project = projects[projectIndex];
 
-    // Determine the active coordinates (Manual takes priority over GPS)
+    // --- LOCATION OVERRIDE LOGIC ---
     final manualLat = ref.watch(manualLatProvider);
     final manualLon = ref.watch(manualLonProvider);
 
+    // Determine the active coordinates (Manual takes priority over GPS)
     final activeLat = manualLat ?? project.latitude;
     final activeLon = manualLon ?? project.longitude;
 
@@ -149,12 +196,8 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
     final bool isManual = manualLat != null;
 
     // Solar Rule of Thumb: Ideal tilt is roughly equal to absolute latitude
-    // FIX: Force re-evaluation using activeLat if suggestedTilt gets stuck or is invalid.
-    final suggestedTilt = project.suggestedTilt;
-
-    final double? displayTilt = (suggestedTilt != null && suggestedTilt > 0)
-        ? suggestedTilt
-        : activeLat?.abs();
+    final double? displayTilt =
+        project.suggestedTilt ?? (activeLat != null ? activeLat.abs() : null);
 
     final List<String> photos = project.photoPaths ?? [];
 
@@ -169,6 +212,152 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // 6. Field Tools Section
+                  Text(
+                    'WORKSPACE TOOLS',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: theme.iconTheme.color?.withValues(alpha: 0.6),
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Menu of Action Cards
+                  Container(
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: theme.dividerColor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: isDark ? 0.2 : 0.02,
+                          ),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildActionTile(
+                          title: 'AR Panel Alignment',
+                          subtitle: 'Calibrate panel tilt & azimuth',
+                          icon: Icons.view_in_ar_rounded,
+                          iconColor: const Color(0xFF3B82F6),
+                          iconBg: const Color(
+                            0xFF3B82F6,
+                          ).withValues(alpha: 0.15),
+                          theme: theme,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ARAlignmentScreen(
+                                projectId: project.id,
+                                targetAzimuth: project.finalAzimuth ?? 180.0,
+                                targetTilt: displayTilt ?? 30.0,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Divider(
+                          height: 1,
+                          indent: 64,
+                          color: theme.dividerColor,
+                        ),
+                        _buildActionTile(
+                          title: 'Shading Analysis',
+                          subtitle: 'Check for horizon obstacles',
+                          icon: Icons.wb_sunny_rounded,
+                          iconColor: theme.colorScheme.primary,
+                          iconBg: theme.colorScheme.primary.withValues(
+                            alpha: 0.15,
+                          ),
+                          theme: theme,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ShadingAnalysisScreen(projectId: project.id),
+                            ),
+                          ),
+                        ),
+                        Divider(
+                          height: 1,
+                          indent: 64,
+                          color: theme.dividerColor,
+                        ),
+                        _buildActionTile(
+                          title: 'System Sizing Estimation',
+                          subtitle: 'System generated capacity and ROI',
+                          icon: Icons.architecture_rounded,
+                          iconColor: const Color(0xFFF59E0B),
+                          iconBg: const Color(
+                            0xFFF59E0B,
+                          ).withValues(alpha: 0.15),
+                          theme: theme,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RoofCalculatorScreen(
+                                projectId: project.id,
+                                projectLatitude:
+                                    activeLat, // Use active/manual latitude
+                              ),
+                            ),
+                          ),
+                        ),
+                        Divider(
+                          height: 1,
+                          indent: 64,
+                          color: theme.dividerColor,
+                        ),
+                        _buildActionTile(
+                          title: 'Take Site Photos',
+                          subtitle: 'Document roof and electrical',
+                          icon: Icons.camera_alt_rounded,
+                          iconColor: theme.colorScheme.primary,
+                          iconBg: theme.colorScheme.primary.withValues(
+                            alpha: 0.15,
+                          ),
+                          theme: theme,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  SitePhotoScreen(projectId: project.id),
+                            ),
+                          ),
+                        ),
+                        Divider(
+                          height: 1,
+                          indent: 64,
+                          color: theme.dividerColor,
+                        ),
+
+                        _buildActionTile(
+                          title: 'Final Installation Checklist',
+                          subtitle: 'Final planned hardware to be installed',
+                          icon: Icons.checklist_rtl_rounded,
+                          iconColor: theme.colorScheme.primary,
+                          iconBg: theme.colorScheme.primary.withValues(
+                            alpha: 0.15,
+                          ),
+                          theme: theme,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  SiteChecklistScreen(projectId: project.id),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   // 1. Modern Client Details Card
                   _buildModernCard(
                     title: 'Contact Information',
@@ -199,7 +388,7 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
                       _buildDataRow(
                         'Coordinates',
                         hasLocation
-                            ? '${isManual ? 'Manual: ' : ''}${activeLat.toStringAsFixed(4)}, ${activeLon.toStringAsFixed(4)}'
+                            ? '${isManual ? 'Manual: ' : ''}${activeLat!.toStringAsFixed(4)}, ${activeLon!.toStringAsFixed(4)}'
                             : 'Pending Capture',
                         theme: theme,
                         highlight: !hasLocation,
@@ -217,10 +406,10 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 3. System Estimation & Topology Card (MERGED)
+                  // 3. System Estimation & Topology Card (Auto-Generated)
                   if (project.estimatedSystemKw != null) ...[
                     _buildModernCard(
-                      title: 'System Estimation & Topology',
+                      title: 'System Estimation (Auto-Generated)',
                       icon: Icons.bolt_rounded,
                       iconColor: const Color(0xFF10B981), // Emerald
                       iconBgColor: const Color(
@@ -267,7 +456,7 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
                           valueColor: const Color(0xFF10B981),
                         ),
 
-                        // TOPOLOGY DETAILS (Forced to show even if null)
+                        // TOPOLOGY DETAILS
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16.0),
                           child: Divider(height: 1, color: theme.dividerColor),
@@ -308,11 +497,11 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
                     const SizedBox(height: 20),
                   ],
 
-                  // 4. Site Variables (Checklist & Shading)
+                  // 4. Site Variables (Final Planned Data by User)
                   if (project.roofMaterial != null ||
                       project.shadingLossPercentage != null) ...[
                     _buildModernCard(
-                      title: 'Site Variables',
+                      title: 'Final Installation Plan (User Verified)',
                       icon: Icons.home_work_outlined,
                       iconColor: const Color(0xFF8B5CF6), // Purple
                       iconBgColor: const Color(
@@ -444,153 +633,6 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
                   ),
                   const SizedBox(height: 40),
 
-                  // 6. Field Tools Section
-                  Text(
-                    'WORKSPACE TOOLS',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: theme.iconTheme.color?.withValues(alpha: 0.6),
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Menu of Action Cards
-                  Container(
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: theme.dividerColor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(
-                            alpha: isDark ? 0.2 : 0.02,
-                          ),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        _buildActionTile(
-                          title: 'AR Panel Alignment',
-                          subtitle: 'Calibrate panel tilt & azimuth',
-                          icon: Icons.view_in_ar_rounded,
-                          iconColor: const Color(0xFF3B82F6),
-                          iconBg: const Color(
-                            0xFF3B82F6,
-                          ).withValues(alpha: 0.15),
-                          theme: theme,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ARAlignmentScreen(
-                                projectId: project.id,
-                                targetAzimuth: project.finalAzimuth ?? 180.0,
-                                targetTilt: displayTilt ?? 30.0,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Divider(
-                          height: 1,
-                          indent: 64,
-                          color: theme.dividerColor,
-                        ),
-                        _buildActionTile(
-                          title: 'System Sizing & Topology',
-                          subtitle: 'Calculate panels, strings, and ROI',
-                          icon: Icons.architecture_rounded,
-                          iconColor: const Color(0xFFF59E0B),
-                          iconBg: const Color(
-                            0xFFF59E0B,
-                          ).withValues(alpha: 0.15),
-                          theme: theme,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RoofCalculatorScreen(
-                                projectId: project.id,
-                                projectLatitude:
-                                    activeLat, // Use active/manual latitude
-                              ),
-                            ),
-                          ),
-                        ),
-                        Divider(
-                          height: 1,
-                          indent: 64,
-                          color: theme.dividerColor,
-                        ),
-                        _buildActionTile(
-                          title: 'Take Site Photos',
-                          subtitle: 'Document roof and electrical',
-                          icon: Icons.camera_alt_rounded,
-                          iconColor: theme.colorScheme.primary,
-                          iconBg: theme.colorScheme.primary.withValues(
-                            alpha: 0.15,
-                          ),
-                          theme: theme,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  SitePhotoScreen(projectId: project.id),
-                            ),
-                          ),
-                        ),
-                        Divider(
-                          height: 1,
-                          indent: 64,
-                          color: theme.dividerColor,
-                        ),
-                        _buildActionTile(
-                          title: 'Shading Analysis',
-                          subtitle: 'Check for horizon obstacles',
-                          icon: Icons.wb_sunny_rounded,
-                          iconColor: theme.colorScheme.primary,
-                          iconBg: theme.colorScheme.primary.withValues(
-                            alpha: 0.15,
-                          ),
-                          theme: theme,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ShadingAnalysisScreen(projectId: project.id),
-                            ),
-                          ),
-                        ),
-                        Divider(
-                          height: 1,
-                          indent: 64,
-                          color: theme.dividerColor,
-                        ),
-                        _buildActionTile(
-                          title: 'Site Analysis Checklist',
-                          subtitle: 'Complete physical inspection',
-                          icon: Icons.checklist_rtl_rounded,
-                          iconColor: theme.colorScheme.primary,
-                          iconBg: theme.colorScheme.primary.withValues(
-                            alpha: 0.15,
-                          ),
-                          theme: theme,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  SiteChecklistScreen(projectId: project.id),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-
                   // 7. Premium Gradient Export Button
                   Container(
                     decoration: BoxDecoration(
@@ -663,46 +705,19 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
     Project project,
     bool isDark,
   ) {
-    // Defines the solid bar color that remains when scrolled/collapsed
-    final topGradientColors = isDark
-        ? [const Color(0xFF0F172A), const Color(0xFF020617)]
-        : [const Color(0xFF1E3A8A), const Color(0xFF312E81)];
-
-    return SliverAppBar(
-      pinned:
-          true, // Forces the top bar to remain fixed and not scroll under the status icons
-      expandedHeight: 240.0,
-      backgroundColor: Colors.transparent, // Controlled by flexible space
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(
-          Icons.arrow_back_ios_new_rounded,
-          color: Colors.white,
-          size: 20,
-        ),
-        onPressed: () => Navigator.pop(context),
-      ),
-      title: Text(
-        'WORKSPACE DETAILS',
-        style: GoogleFonts.plusJakartaSans(
-          color: Colors.white.withValues(alpha: 0.8),
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.5,
-        ),
-      ),
-      centerTitle: false,
-
-      // Flexible Space handles the beautiful edge-to-edge gradient and fade-out scrolling
-      flexibleSpace: Container(
+    return SliverToBoxAdapter(
+      child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: topGradientColors,
+            colors: isDark
+                ? [const Color(0xFF0F172A), const Color(0xFF020617)]
+                : [const Color(0xFF1E3A8A), const Color(0xFF312E81)],
           ),
-          // We intentionally drop the bottom radius here so it sits perfectly flush with
-          // the status bar when collapsed, preventing scrolling overlap.
+          borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(40),
+          ),
           boxShadow: [
             BoxShadow(
               color: (isDark ? Colors.black : const Color(0xFF1E3A8A))
@@ -712,96 +727,125 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
             ),
           ],
         ),
-        child: FlexibleSpaceBar(
-          background: Stack(
-            children: [
-              // Ambient Geometric Glows
-              Positioned(
-                bottom: -50,
-                left: -50,
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            Positioned(
+              bottom: -50,
+              left: -50,
+              child: Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(
+                        0xFF38BDF8,
+                      ).withValues(alpha: isDark ? 0.08 : 0.15),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: -40,
+              left: -100,
+              child: Transform.rotate(
+                angle: -0.2,
                 child: Container(
-                  width: 250,
-                  height: 250,
+                  width: 500,
+                  height: 120,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
+                    gradient: LinearGradient(
                       colors: [
-                        const Color(
-                          0xFF38BDF8,
-                        ).withValues(alpha: isDark ? 0.08 : 0.15),
-                        Colors.transparent,
+                        Colors.white.withValues(alpha: 0.0),
+                        Colors.white.withValues(alpha: isDark ? 0.02 : 0.06),
+                        Colors.white.withValues(alpha: 0.0),
                       ],
                     ),
                   ),
                 ),
               ),
-              Positioned(
-                top: -40,
-                left: -100,
-                child: Transform.rotate(
-                  angle: -0.2,
-                  child: Container(
-                    width: 500,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withValues(alpha: 0.0),
-                          Colors.white.withValues(alpha: isDark ? 0.02 : 0.06),
-                          Colors.white.withValues(alpha: 0.0),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // Main Title Content (Pushed to bottom, gracefully fades out on scroll)
-              Positioned(
-                bottom: 32,
-                left: 24,
-                right: 24,
+            ),
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 24, 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      project.customerName,
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 32,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
+                    // Back Button & Label
                     Row(
                       children: [
-                        const Icon(
-                          Icons.location_on_rounded,
-                          size: 14,
-                          color: Color(0xFFF59E0B),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          onPressed: () => Navigator.pop(context),
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            project.address,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          'WORKSPACE DETAILS',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            project.customerName,
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 32,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on_rounded,
+                                size: 14,
+                                color: Color(0xFFF59E0B),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  project.address,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -844,13 +888,15 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
                 child: Icon(icon, color: iconColor, size: 20),
               ),
               const SizedBox(width: 14),
-              Text(
-                title,
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: theme.colorScheme.onSurface,
-                  letterSpacing: -0.3,
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: theme.colorScheme.onSurface,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
             ],
@@ -1016,23 +1062,129 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
             ListTile(
               onTap: () async {
                 Navigator.pop(context);
+
+                // PREMIUM DOWNLOADING SNACKBAR
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Downloading Report...'),
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.downloading_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Downloading Report',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Text(
+                                'Saving PDF to your device...',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    backgroundColor: theme.colorScheme.primary, // Premium Blue
                     behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.only(
+                      bottom: 24,
+                      left: 24,
+                      right: 24,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 10,
                   ),
                 );
+
                 final pdfService = ref.read(pdfServiceProvider);
                 bool success = await pdfService.generateAndShareReport(
                   project,
                   downloadOnly: true,
                 );
+
                 if (success && context.mounted) {
+                  // PREMIUM SUCCESS SNACKBAR
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('PDF Saved to Downloads Folder!'),
-                      backgroundColor: Colors.green,
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_circle_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Export Successful',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                Text(
+                                  'PDF Saved to Downloads Folder!',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: const Color(
+                        0xFF10B981,
+                      ), // Premium Emerald
                       behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.only(
+                        bottom: 24,
+                        left: 24,
+                        right: 24,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 10,
                     ),
                   );
                 }
@@ -1064,12 +1216,65 @@ class _SiteWorkspaceScreenState extends ConsumerState<SiteWorkspaceScreen> {
             ListTile(
               onTap: () async {
                 Navigator.pop(context);
+
+                // PREMIUM PREPARING SNACKBAR
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Preparing Report...'),
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.share_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Preparing Report',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Text(
+                                'Opening share options...',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    backgroundColor: theme.colorScheme.primary, // Premium Blue
                     behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.only(
+                      bottom: 24,
+                      left: 24,
+                      right: 24,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 10,
                   ),
                 );
+
                 final pdfService = ref.read(pdfServiceProvider);
                 await pdfService.generateAndShareReport(
                   project,

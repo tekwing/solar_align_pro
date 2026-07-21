@@ -30,25 +30,25 @@ class Project {
   double? finalAzimuth;
 
   @HiveField(8)
-  DateTime createdAt;
+  final DateTime createdAt;
 
   @HiveField(9)
-  List<String>? photoPaths;
-
-  @HiveField(10)
   double? estimatedAreaSqM;
 
-  @HiveField(11)
+  @HiveField(10)
   int? estimatedPanels;
 
-  @HiveField(12)
+  @HiveField(11)
   double? estimatedSystemKw;
 
-  @HiveField(13)
+  @HiveField(12)
   double? estimatedGenerationKwh;
 
-  @HiveField(14)
+  @HiveField(13)
   double? estimatedSavings;
+
+  @HiveField(14)
+  List<String>? photoPaths;
 
   @HiveField(15)
   String? roofMaterial;
@@ -77,6 +77,30 @@ class Project {
   @HiveField(23)
   double? arrayImp;
 
+  @HiveField(24)
+  String? additionalNotes;
+
+  @HiveField(25)
+  String? inverterType;
+
+  @HiveField(26)
+  String? wireGauge;
+
+  @HiveField(27)
+  String? batteryType;
+
+  @HiveField(28)
+  double? batteryCapacityKwh;
+
+  @HiveField(29)
+  double? batteryVoltage;
+
+  @HiveField(30)
+  double? inverterPowerKw;
+
+  @HiveField(31)
+  double? inverterVoltage;
+
   Project({
     String? id,
     required this.customerName,
@@ -86,12 +110,13 @@ class Project {
     this.longitude,
     this.suggestedTilt,
     this.finalAzimuth,
-    this.photoPaths,
+    DateTime? createdAt,
     this.estimatedAreaSqM,
     this.estimatedPanels,
     this.estimatedSystemKw,
     this.estimatedGenerationKwh,
     this.estimatedSavings,
+    this.photoPaths,
     this.roofMaterial,
     this.rafterSpacing,
     this.mainPanelAmps,
@@ -101,7 +126,14 @@ class Project {
     this.panelsInSeries,
     this.stringVoc,
     this.arrayImp,
-    DateTime? createdAt,
+    this.additionalNotes,
+    this.inverterType,
+    this.wireGauge,
+    this.batteryType,
+    this.batteryCapacityKwh,
+    this.batteryVoltage,
+    this.inverterPowerKw,
+    this.inverterVoltage,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now();
 }

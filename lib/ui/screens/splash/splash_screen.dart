@@ -1,7 +1,7 @@
-import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../dashboard/dashboard_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../dashboard/dashboard_screen.dart'; // Ensure this path matches your structure
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -11,352 +11,277 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _mainController;
-  late AnimationController _rotationController;
-
-  late Animation<double> _sunScale;
-  late Animation<double> _textOpacity;
-  late Animation<double> _panelOpacity;
-  late Animation<double> _beamOpacity;
+    with SingleTickerProviderStateMixin {
+  late AnimationController _progressController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
 
-    _mainController = AnimationController(
+    // 1. Setup Animation Controller (Loading Bar & Fading)
+    _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2800),
+      duration: const Duration(seconds: 3), // Total splash screen time
     );
 
-    _rotationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 15),
-    )..repeat();
-
-    _sunScale = Tween<double>(begin: 0, end: 1).animate(
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0, 0.4, curve: Curves.elasticOut),
+        parent: _progressController,
+        curve: const Interval(
+          0.0,
+          0.3,
+          curve: Curves.easeIn,
+        ), // Fade in quickly
       ),
     );
 
-    _beamOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.25, 0.55, curve: Curves.easeIn),
-      ),
-    );
+    // 2. Start the animation
+    _progressController.forward();
 
-    _panelOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.45, 0.75, curve: Curves.easeOut),
-      ),
-    );
-
-    _textOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.65, 1, curve: Curves.easeOut),
-      ),
-    );
-
-    _mainController.forward();
-
-    Timer(const Duration(seconds: 4), () {
-      if (!mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 600),
-          pageBuilder: (_, __, ___) => const DashboardScreen(),
-          transitionsBuilder: (_, animation, __, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
+    // 3. Navigate to Dashboard when animation completes
+    _progressController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const DashboardScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+            transitionDuration: const Duration(milliseconds: 800),
+          ),
+        );
+      }
     });
   }
 
   @override
   void dispose() {
-    _mainController.dispose();
-    _rotationController.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AnimatedBuilder(
-        animation: Listenable.merge([_mainController, _rotationController]),
-        builder: (context, child) {
-          return Container(
-            width: double.infinity,
-            height: double.infinity,
+      backgroundColor: const Color(0xFF020617), // Deep space background
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // --- 1. BACKGROUND GRADIENTS (Premium Dark Theme) ---
+          Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF07111F),
-                  Color(0xFF0E213B),
-                  Color(0xFF07111F),
+                  Color(0xFF0B131E), // Deep SaaS Navy
+                  Color(0xFF020617), // Deepest Slate
                 ],
               ),
             ),
-            child: Stack(
-              children: [
-                const Positioned.fill(child: _BackgroundParticles()),
+          ),
 
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ScaleTransition(
-                        scale: _sunScale,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Outer Glow
-                            TweenAnimationBuilder(
-                              tween: Tween<double>(begin: 1, end: 1.15),
-                              duration: const Duration(seconds: 2),
-                              curve: Curves.easeInOut,
-                              builder: (_, double value, child) {
-                                return Transform.scale(
-                                  scale: value,
-                                  child: Container(
-                                    width: 190,
-                                    height: 190,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.orange.withValues(
-                                            alpha: .35,
-                                          ),
-                                          blurRadius: 100,
-                                          spreadRadius: 30,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-
-                            // Rotating Rays
-                            RotationTransition(
-                              turns: _rotationController,
-                              child: CustomPaint(
-                                size: const Size(220, 220),
-                                painter: SunRayPainter(),
-                              ),
-                            ),
-
-                            // Sun Ring
-                            Container(
-                              width: 130,
-                              height: 130,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    Colors.orange.shade200,
-                                    Colors.orange.shade700,
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            // Inner Core
-                            Container(
-                              width: 100,
-                              height: 100,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const RadialGradient(
-                                  colors: [
-                                    Color(0xFFFFFFFF),
-                                    Color(0xFFFFF176),
-                                    Color(0xFFFFC107),
-                                    Color(0xFFFF8F00),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 25),
-
-                      FadeTransition(
-                        opacity: _beamOpacity,
-                        child: Container(
-                          width: 6,
-                          height: 90,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(50),
-                            gradient: const LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Color(0xFFFFD54F), Color(0x00FFD54F)],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      FadeTransition(
-                        opacity: _panelOpacity,
-                        child: Transform(
-                          alignment: Alignment.center,
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.001)
-                            ..rotateX(-0.55),
-                          child: Container(
-                            width: 220,
-                            height: 110,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF12395D),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: const Color(0xFF4FC3F7),
-                                width: 2,
-                              ),
-                            ),
-                            child: CustomPaint(painter: SolarGridPainter()),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 90),
-
-                      FadeTransition(
-                        opacity: _textOpacity,
-                        child: Column(
-                          children: [
-                            const Text(
-                              "SOLAR ALIGN PRO",
-                              style: TextStyle(
-                                fontSize: 30,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 4,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "Professional Solar Alignment",
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: .75),
-                                fontSize: 14,
-                                letterSpacing: 2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+          // Subtle ambient tech glow
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              height: 400,
+              width: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFF38BDF8).withValues(alpha: 0.1),
+                    Colors.transparent,
+                  ],
                 ),
-              ],
+              ),
             ),
-          );
-        },
+          ),
+
+          // --- 2. FOREGROUND CONTENT ---
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Column(
+                children: [
+                  const SizedBox(height: 80),
+
+                  // A. Logo & Title Section
+                  const Icon(
+                    Icons.solar_power_rounded,
+                    size: 90,
+                    color: Color(0xFFFBBF24), // Bright Amber
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'SOLAR',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 52,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 16.0,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'A L I G N   P R O',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFFBBF24), // Bright Amber
+                      letterSpacing: 10.0,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // B. Separator & Subtitle
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'PROFESSIONAL SOLAR ALIGNMENT',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white.withValues(alpha: 0.9),
+                              letterSpacing: 3.0,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Container(
+                            height: 1,
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // C. Loading Section
+                  Text(
+                    'LOADING...',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 4.0,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Animated Progress Bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 64),
+                    child: Container(
+                      height: 4,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
+                      ),
+                      child: AnimatedBuilder(
+                        animation: _progressController,
+                        builder: (context, child) {
+                          return FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: _progressController.value,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFFF59E0B), // Deep Amber
+                                    Color(0xFFFEF08A), // Light Yellow
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFFF59E0B,
+                                    ).withValues(alpha: 0.6),
+                                    blurRadius: 12,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // D. Bottom Tagline
+                  Text(
+                    'PERFECT ALIGNMENT. MAXIMUM ENERGY.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2.0,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 2.0,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: 'A ',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        const TextSpan(
+                          text: 'GREENER',
+                          style: TextStyle(
+                            color: Color(0xFF10B981), // Bright Emerald Green
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' FUTURE.',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 50),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
-}
-
-class SunRayPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFFFFF176), Color(0xFFFF9800)],
-      ).createShader(Rect.fromCircle(center: center, radius: 120))
-      ..strokeWidth = 6
-      ..strokeCap = StrokeCap.round;
-
-    for (int i = 0; i < 24; i++) {
-      final angle = i * (math.pi * 2 / 24);
-
-      final startRadius = 85.0;
-      final endRadius = 125.0;
-
-      final start = Offset(
-        center.dx + math.cos(angle) * startRadius,
-        center.dy + math.sin(angle) * startRadius,
-      );
-
-      final end = Offset(
-        center.dx + math.cos(angle) * endRadius,
-        center.dy + math.sin(angle) * endRadius,
-      );
-
-      canvas.drawLine(start, end, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class SolarGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF81D4FA)
-      ..strokeWidth = 1;
-
-    for (int i = 1; i < 6; i++) {
-      final x = size.width * i / 6;
-
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-
-    for (int i = 1; i < 5; i++) {
-      final y = size.height * i / 5;
-
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
-}
-
-class _BackgroundParticles extends StatelessWidget {
-  const _BackgroundParticles();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: ParticlePainter());
-  }
-}
-
-class ParticlePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint();
-
-    for (int i = 0; i < 60; i++) {
-      paint.color = Colors.white.withValues(alpha: 0.15);
-
-      canvas.drawCircle(
-        Offset((i * 37 % size.width), (i * 91 % size.height)),
-        1.5,
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

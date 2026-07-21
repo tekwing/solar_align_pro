@@ -25,12 +25,13 @@ class ProjectAdapter extends TypeAdapter<Project> {
       longitude: fields[5] as double?,
       suggestedTilt: fields[6] as double?,
       finalAzimuth: fields[7] as double?,
-      photoPaths: (fields[9] as List?)?.cast<String>(),
-      estimatedAreaSqM: fields[10] as double?,
-      estimatedPanels: fields[11] as int?,
-      estimatedSystemKw: fields[12] as double?,
-      estimatedGenerationKwh: fields[13] as double?,
-      estimatedSavings: fields[14] as double?,
+      createdAt: fields[8] as DateTime?,
+      estimatedAreaSqM: fields[9] as double?,
+      estimatedPanels: fields[10] as int?,
+      estimatedSystemKw: fields[11] as double?,
+      estimatedGenerationKwh: fields[12] as double?,
+      estimatedSavings: fields[13] as double?,
+      photoPaths: (fields[14] as List?)?.cast<String>(),
       roofMaterial: fields[15] as String?,
       rafterSpacing: fields[16] as String?,
       mainPanelAmps: fields[17] as int?,
@@ -40,14 +41,21 @@ class ProjectAdapter extends TypeAdapter<Project> {
       panelsInSeries: fields[21] as int?,
       stringVoc: fields[22] as double?,
       arrayImp: fields[23] as double?,
-      createdAt: fields[8] as DateTime?,
+      additionalNotes: fields[24] as String?,
+      inverterType: fields[25] as String?,
+      wireGauge: fields[26] as String?,
+      batteryType: fields[27] as String?,
+      batteryCapacityKwh: fields[28] as double?,
+      batteryVoltage: fields[29] as double?,
+      inverterPowerKw: fields[30] as double?,
+      inverterVoltage: fields[31] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Project obj) {
     writer
-      ..writeByte(24)
+      ..writeByte(32)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -67,17 +75,17 @@ class ProjectAdapter extends TypeAdapter<Project> {
       ..writeByte(8)
       ..write(obj.createdAt)
       ..writeByte(9)
-      ..write(obj.photoPaths)
-      ..writeByte(10)
       ..write(obj.estimatedAreaSqM)
-      ..writeByte(11)
+      ..writeByte(10)
       ..write(obj.estimatedPanels)
-      ..writeByte(12)
+      ..writeByte(11)
       ..write(obj.estimatedSystemKw)
-      ..writeByte(13)
+      ..writeByte(12)
       ..write(obj.estimatedGenerationKwh)
-      ..writeByte(14)
+      ..writeByte(13)
       ..write(obj.estimatedSavings)
+      ..writeByte(14)
+      ..write(obj.photoPaths)
       ..writeByte(15)
       ..write(obj.roofMaterial)
       ..writeByte(16)
@@ -95,7 +103,23 @@ class ProjectAdapter extends TypeAdapter<Project> {
       ..writeByte(22)
       ..write(obj.stringVoc)
       ..writeByte(23)
-      ..write(obj.arrayImp);
+      ..write(obj.arrayImp)
+      ..writeByte(24)
+      ..write(obj.additionalNotes)
+      ..writeByte(25)
+      ..write(obj.inverterType)
+      ..writeByte(26)
+      ..write(obj.wireGauge)
+      ..writeByte(27)
+      ..write(obj.batteryType)
+      ..writeByte(28)
+      ..write(obj.batteryCapacityKwh)
+      ..writeByte(29)
+      ..write(obj.batteryVoltage)
+      ..writeByte(30)
+      ..write(obj.inverterPowerKw)
+      ..writeByte(31)
+      ..write(obj.inverterVoltage);
   }
 
   @override
